@@ -1,0 +1,65 @@
+<div class="arbitro-detail">
+  @if (cargando()) {
+    <sv-cargando [filas]="5" />
+  } @else if (error()) {
+    <p class="error-message">{{ error() }}</p>
+  } @else if (arbitro(); as a) {
+    <div class="hero">
+      <span class="silbato" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M6 3v10a6 6 0 0 0 12 0V3"/><path d="M12 19v2"/><circle cx="12" cy="9" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </span>
+      <div>
+        <h1>{{ a.nombre }}</h1>
+        <p class="meta">{{ 'referee' | transloco }}@if (a.pais) { <span> · {{ a.pais }}</span> }</p>
+      </div>
+    </div>
+
+    <div class="cifras">
+      <div class="cifra">
+        <span class="cifra-valor mono">{{ a.partidosDirigidos }}</span>
+        <span class="cifra-label">{{ 'matches_managed' | transloco }}</span>
+      </div>
+      <div class="cifra">
+        <span class="cifra-valor mono cifra-valor--amarilla">{{ a.tarjetasAmarillas }}</span>
+        <span class="cifra-label">{{ 'yellow_cards' | transloco }}</span>
+      </div>
+      <div class="cifra">
+        <span class="cifra-valor mono cifra-valor--roja">{{ a.tarjetasRojas }}</span>
+        <span class="cifra-label">{{ 'red_cards' | transloco }}</span>
+      </div>
+      <div class="cifra">
+        <span class="cifra-valor mono">{{ a.mediaAmarillas != null ? (a.mediaAmarillas | number:'1.1-2') : '–' }}</span>
+        <!-- La media va sobre los partidos con timeline ingerido, no sobre todos los
+             dirigidos: si no, un árbitro con partidos antiguos sin eventos saldría con una
+             media artificialmente baja. Por eso se dice sobre cuántos se calcula. -->
+        <span class="cifra-label">{{ 'yellow_cards_per_match' | transloco }}<br><span class="cifra-nota">{{ 'over_n_with_events' | transloco: { n: a.partidosConEventos } }}</span></span>
+      </div>
+    </div>
+
+    <section>
+      <h2>{{ 'recent_matches_managed' | transloco }}</h2>
+      <ul class="lista">
+        @for (p of partidos(); track p.idPartido) {
+          <li class="partido-row" [routerLink]="['/partidos', p.idPartido]"
+              [queryParams]="{local: p.idEquipoLocal, visitante: p.idEquipoVisitante}">
+            <span class="mono partido-fecha">{{ p.fecha | date:'d MMM yyyy' }}</span>
+            <span class="partido-encuentro">
+              <img svImagen="equipo" [src]="p.escudoLocal" alt="" class="escudo-mini">
+              {{ p.equipoLocal }}
+              <span class="mono resultado">{{ p.resultadoLocal ?? '-' }} - {{ p.resultadoVisitante ?? '-' }}</span>
+              {{ p.equipoVisitante }}
+              <img svImagen="equipo" [src]="p.escudoVisitante" alt="" class="escudo-mini">
+            </span>
+            <span class="partido-liga">{{ p.liga }}</span>
+          </li>
+        } @empty {
+          <li class="vacio">{{ (cargandoPartidos() ? 'loading_matches' : 'no_matches_on_record_for_them') | transloco }}</li>
+        }
+      </ul>
+
+        <sv-paginador [pagina]="pagina()" [totalPaginas]="totalPaginas()" [deshabilitado]="cargandoPartidos()" (cambio)="cargarPartidos($event)" />
+    </section>
+  }
+</div>

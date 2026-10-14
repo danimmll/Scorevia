@@ -1,0 +1,25 @@
+@if (total() > 1) {
+  <nav class="pg" [attr.aria-label]="'pagination_of' | transloco: { que: etiqueta }">
+    <button type="button" class="pg-flecha" [disabled]="!hayAnterior() || deshabilitado"
+            (click)="ir(paginaActual() - 1)" [attr.aria-label]="'previous_page' | transloco">‹</button>
+
+    <!-- Los números solo desde tablet: en móvil no caben y se cae al contador de abajo. -->
+    <span class="pg-numeros">
+      @for (n of numeros(); track $index) {
+        @if (n === null) {
+          <span class="pg-hueco" aria-hidden="true">…</span>
+        } @else {
+          <button type="button" class="pg-num" [class.pg-num--activa]="n === paginaActual()"
+                  [attr.aria-current]="n === paginaActual() ? 'page' : null"
+                  [disabled]="deshabilitado"
+                  (click)="ir(n)">{{ n + 1 }}</button>
+        }
+      }
+    </span>
+
+    <span class="pg-contador">{{ paginaActual() + 1 }} / {{ total() }}</span>
+
+    <button type="button" class="pg-flecha" [disabled]="!haySiguiente() || deshabilitado"
+            (click)="ir(paginaActual() + 1)" [attr.aria-label]="'next_page' | transloco">›</button>
+  </nav>
+}

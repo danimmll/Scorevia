@@ -1,0 +1,55 @@
+<h1>{{ 'coaches' | transloco }}</h1>
+
+@if (error()) {
+  <p class="error-message">{{ error() }}</p>
+}
+
+<div class="filtros">
+  <select [attr.aria-label]="'filter_by_country' | transloco" (change)="seleccionarPais($any($event.target).value)">
+    @for (pais of paises(); track pais) {
+      <option [value]="pais" [selected]="pais === paisSeleccionado()">{{ pais }}</option>
+    }
+  </select>
+
+  <select [attr.aria-label]="'filter_by_league' | transloco" (change)="seleccionarLiga(+$any($event.target).value)">
+    @for (grupo of gruposLigasDelPais(); track grupo.categoria) {
+      @if (gruposLigasDelPais().length > 1) {
+        <optgroup [label]="grupo.categoria">
+          @for (liga of grupo.ligas; track liga.idLiga) {
+            <option [value]="liga.idLiga" [selected]="liga.idLiga === ligaSeleccionada()">{{ liga.nombre }}</option>
+          }
+        </optgroup>
+      } @else {
+        @for (liga of grupo.ligas; track liga.idLiga) {
+          <option [value]="liga.idLiga" [selected]="liga.idLiga === ligaSeleccionada()">{{ liga.nombre }}</option>
+        }
+      }
+    }
+  </select>
+</div>
+
+@if (cargando()) {
+  <sv-cargando [filas]="8" />
+} @else {
+  <div class="entrenadores-grid">
+    @for (tecnico of paginados.visibles(); track tecnico.idEntrenador) {
+      <a [routerLink]="['/estadisticas/entrenadores', tecnico.idEntrenador]" class="entrenador-card">
+        <img svImagen="entrenador" [src]="tecnico.foto" [alt]="tecnico.nombre" class="foto">
+        <div class="entrenador-nombre">{{ tecnico.nombre }}</div>
+        <div class="entrenador-meta">
+          @if (tecnico.equipo) {
+            <img svImagen="equipo" [src]="tecnico.equipo.logo" alt="" class="escudo-mini">
+            {{ tecnico.equipo.nombre }}
+          } @else {
+            {{ tecnico.nacionalidad }}
+          }
+        </div>
+      </a>
+    } @empty {
+      <p class="vacio">{{ 'no_coaches_on_record_for_this_league' | transloco }}</p>
+    }
+  </div>
+}
+
+<sv-paginador [pagina]="paginados.pagina()" [totalPaginas]="paginados.totalPaginas()"
+              etiqueta="entrenadores" (cambio)="paginados.pagina.set($event)" />

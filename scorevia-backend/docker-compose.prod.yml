@@ -1,0 +1,182 @@
+# Overlay de PRODUCCIÓN -- añade TLS real para scorevia.net encima del docker-compose.yml
+# de siempre. No sustituye a docker-compose.yml, se combina con él:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Qué hace este overlay y por qué está separado del compose de desarrollo:
+#   1. Añade el servicio `caddy`: único punto de entrada público (80/443), obtiene y renueva
+#      el certificado Let's Encrypt de scorevia.net solo, y reenvía hacia api-gateway o
+#      frontend según el path (ver Caddyfile).
+#   2. Deja a api-gateway Y a frontend SIN puerto publicado hacia el host, con
+#      `ports: !reset []`. Sin esto, cualquiera podría saltarse Caddy y hablar directo con
+#      el Gateway en texto plano, además de poder falsificar X-Forwarded-For (ver el
+#      javadoc de ClienteIpResolver.java, que asume exactamente esta topología).
+#
+#      OJO con la sintaxis, que aquí hubo un error de bulto: `ports: []` a secas NO quita
+#      nada. Compose FUSIONA las listas de puertos entre ficheros, no las reemplaza, así
+#      que un `[]` vacío se combina con el `8085:8085` del base y el puerto sigue abierto.
+#      Se comprobó con `docker compose -f docker-compose.yml -f docker-compose.prod.yml
+#      config`: salía `published: "8085"` igual. La etiqueta `!reset` (Compose >= 2.24) es
+#      la que borra de verdad lo que traía el fichero base.
+#   3. Fija NG_ALLOWED_HOSTS=scorevia.net en frontend: sin esto, el SSR de Angular
+#      rechaza el Host header real y cae a client-side rendering en todo pedido (ver
+#      angular.json security.allowedHosts / src/server.ts). NG_TRUST_PROXY_HEADERS
+#      autoriza los X-Forwarded-* que ya reenvía Caddy -- si no, Angular los descarta y
+#      también degrada a CSR (mismo motivo por el que ClienteIpResolver.java necesita
+#      esta misma cabecera del lado del Gateway).
+#   4. Exige credenciales REALES de Eureka y COOKIE_SECURE=true. El compose base usa
+#      `${EUREKA_USERNAME:-eureka}` para que en local no haya que configurar nada, pero eso
+#      significa que un despliegue donde alguien olvide exportarlas arranca tan campante con
+#      eureka/eureka. La sintaxis `${VAR:?mensaje}` de Compose aborta el `up` con ese mensaje
+#      si la variable falta o está vacía: mejor no desplegar que desplegar con el default.
+#
+# En desarrollo local se sigue usando solo `docker-compose.yml`: el Gateway y el frontend
+# mantienen sus puertos publicados en localhost tal cual, sin Caddy ni TLS de por medio.
+
+services:
+  # ------------------------------------------------------------------ Postgres afinado ---
+  #
+  # La imagen oficial arranca con los valores por defecto de Postgres, que están pensados
+  # para caber en cualquier sitio: shared_buffers 128 MB, effective_cache_size 4 GB,
+  # random_page_cost 4 (o sea, "el disco es un plato que gira") y max_wal_size 1 GB.
+  # Sobre esta base de datos eso se nota: 8,0 GB de datos (medido el 2026-09-10; eran 6,2 GB
+  # el 2026-09-01), 9,1 M de eventos y 6,3 M de estadísticas de jugador, con la ingesta en
+  # vivo escribiendo cada 30 segundos. Medido en desarrollo, el contenedor de Postgres pasaba
+  # ratos al 88% de CPU.
+  #
+  # Los números de abajo son para el VPS de producción (8 vCPU / 16 GB / NVMe), contando con
+  # que Postgres NO está solo en la máquina: comparte con ~4 GB de JVMs y con Jenkins y
+  # SonarQube. Por eso shared_buffers va a 2 GB y no a los 4 GB (25% de la RAM) que se
+  # recomiendan para un servidor dedicado a la base de datos.
+  #
+  #   shared_buffers 2GB          la caché propia de Postgres, x16 respecto al defecto
+  #   effective_cache_size 6GB    lo que el planificador cree que hay cacheado (SO incluido)
+  #   random_page_cost 1.1        en NVMe un salto aleatorio cuesta casi lo mismo que uno
+  #                               secuencial; con el 4 por defecto el planificador descarta
+  #                               índices y se va a seq scan sobre tablas de millones de filas
+  #   max_wal_size 4GB            menos checkpoints durante la ingesta, que es escritura
+  #                               constante en ráfagas
+  #   work_mem 16MB               los ORDER BY y agregados de las clasificaciones dejan de
+  #                               tirar de fichero temporal en disco
+  #   max_connections 150         hoy se usan 46 de 100, pero con margen para picos
+  #
+  # Esto va en el overlay y no en el compose base a propósito: en una máquina de desarrollo
+  # reservar 2 GB para Postgres es quitárselos a todo lo demás.
+  postgres-db:
+    # El tope de RAM sube con la configuracion. El compose base deja 3 GB, que valen para los
+    # 128 MB de shared_buffers por defecto de la imagen; con los valores de abajo NO llegan:
+    #
+    #   shared_buffers        2,0 GB
+    #   shm_size              1,0 GB  (cuenta dentro del mem_limit y no es reclamable)
+    #   maintenance_work_mem  0,5 GB
+    #   ------------------------------
+    #                         3,5 GB  antes de la primera conexion
+    #
+    # ...y encima va work_mem (16 MB por nodo de ordenacion, no por conexion) mas los ~10 MB
+    # de cada backend. Con 3 GB el kernel mata el contenedor en mitad de una consulta grande, y
+    # lo que se lee en el log no es "falta memoria" sino que Postgres se reinicio solo.
+    mem_limit: 5g
+    command: >
+      postgres
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c maintenance_work_mem=512MB
+      -c work_mem=16MB
+      -c max_connections=150
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c max_wal_size=4GB
+      -c min_wal_size=1GB
+      -c checkpoint_completion_target=0.9
+      -c max_parallel_workers_per_gather=4
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - backend
+
+  # Credenciales de Eureka obligatorias en producción: sin ellas, `up` aborta.
+  eureka-server:
+    environment:
+      EUREKA_USERNAME: ${EUREKA_USERNAME:?define EUREKA_USERNAME en el .env de produccion, no vale el default eureka/eureka}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?define EUREKA_PASSWORD en el .env de produccion, no vale el default eureka/eureka}
+
+  api-gateway:
+    # `!override` sustituye la lista del compose base en vez de fusionarse con ella (que es
+    # lo que hace Compose por defecto). Aquí no se borra el puerto del todo, se reata a
+    # loopback: `127.0.0.1:8085` NO es alcanzable desde internet -- solo desde una shell del
+    # propio servidor -- pero deja lanzar los scripts de rellenado (scripts/backfill.py,
+    # sync_clasificaciones.py, sync_plantillas.py) directamente en el VPS con su
+    # SCOREVIA_BASE_URL por defecto, y permite un `curl localhost:8085/actuator/health` para
+    # depurar sin pasar por Caddy.
+    #
+    # La topología que promete el javadoc de ClienteIpResolver.java se mantiene: desde fuera
+    # el único camino hasta el Gateway sigue siendo Caddy, así que nadie de internet puede
+    # falsificar X-Forwarded-For. Quien ya tenga shell en el servidor no necesita este puerto
+    # para hacer daño.
+    ports: !override
+      - "127.0.0.1:8085:8085"
+    environment:
+      # Mismo motivo: si falta, el gateway se registraría con eureka/eureka.
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://${EUREKA_USERNAME:?falta EUREKA_USERNAME}:${EUREKA_PASSWORD:?falta EUREKA_PASSWORD}@eureka-server:8761/eureka/
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?define FRONTEND_ORIGIN, p.ej. https://scorevia.net}
+      # Fuera los localhost del CORS. En desarrollo el Gateway permite localhost:4200 y :4000
+      # por comodidad, pero en produccion eso dejaba que cualquier pagina servida desde el
+      # localhost de un visitante hablara con esta API llevandose sus cookies
+      # (allowCredentials va en true). Aqui no hace ninguna falta: el frontend se sirve por
+      # Caddy bajo el mismo dominio, asi que el navegador ni siquiera cruza origenes.
+      CORS_ORIGINS: ${FRONTEND_ORIGIN:?define FRONTEND_ORIGIN, p.ej. https://scorevia.net}
+
+  # El live scoring SÍ va encendido en producción: es la razón de ser de la web. En el
+  # compose base está apagado, porque en desarrollo la cuota hace más falta en el backfill
+  # y nadie está mirando marcadores en tiempo real en una máquina local.
+  # Coste medido: ~13.000 peticiones/día (8,6% de la cuota del plan Mega).
+  estadisticas:
+    environment:
+      INGESTA_VIVO_HABILITADA: "true"
+      # En producción sí interesan: son los que mantienen la ficha del partido completa sin
+      # que nadie lance un script. Ver IngestaScheduler.
+      INGESTA_POST_PARTIDO_HABILITADA: "true"
+      INGESTA_RECOGIDA_HABILITADA: "true"
+      INGESTA_CALENDARIO_HABILITADA: "true"
+      INGESTA_CLASIFICACIONES_HABILITADA: "true"
+      # El repaso de mediodia, que recoge lo que los otros trabajos se dejan cuando algo falla.
+      INGESTA_RECONCILIACION_HABILITADA: "true"
+      INGESTA_PUESTA_AL_DIA_HABILITADA: "true"
+
+  # Las cookies de sesión viajan por HTTPS detrás de Caddy: sin Secure, el navegador las
+  # mandaría también en claro y cualquier intermediario podría quedarse la sesión.
+  usuariosroles:
+    environment:
+      COOKIE_SECURE: ${COOKIE_SECURE:?define COOKIE_SECURE=true en produccion}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?define FRONTEND_ORIGIN, p.ej. https://scorevia.net}
+
+  frontend:
+    # Aquí sí se borra del todo: al SSR de Angular solo se le habla a través de Caddy, que es
+    # quien le pone las cabeceras X-Forwarded-* que necesita para no degradar a CSR.
+    ports: !reset []
+    environment:
+      NG_ALLOWED_HOSTS: scorevia.net
+      NG_TRUST_PROXY_HEADERS: x-forwarded-for,x-forwarded-proto,x-forwarded-host
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  backend:
+    external: true
+    name: scorevia_backend

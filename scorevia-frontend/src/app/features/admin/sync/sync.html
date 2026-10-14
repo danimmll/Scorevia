@@ -1,0 +1,37 @@
+<h1>{{ 'manual_sync' | transloco }}</h1>
+<p class="sub">{{ 'ingest_triggers_several_are_asynchronous_202' | transloco }}</p>
+
+@if (error()) { <p class="error-message">{{ error() }}</p> }
+@if (resultado()) { <p class="ok-message">{{ resultado() }}</p> }
+
+<div class="acciones">
+  <div class="accion">
+    <input type="date" [attr.aria-label]="'date_to_sync' | transloco" [(ngModel)]="fecha">
+    <button (click)="sync()">{{ 'sync_by_date' | transloco }}</button>
+  </div>
+  <div class="accion"><button (click)="statsSync()">{{ 'stats_sync' | transloco }}</button></div>
+  <div class="accion"><button (click)="syncTrofeosBajas()">{{ 'sync_trophies_absences' | transloco }}</button></div>
+  <div class="accion"><button (click)="syncTraspasos()">{{ 'sync_transfers' | transloco }}</button></div>
+  <div class="accion">
+    <input type="number" [placeholder]="'league_id' | transloco" [(ngModel)]="idLigaEstadios" [attr.aria-label]="'league_id' | transloco">
+    <input type="number" [placeholder]="'season' | transloco" [(ngModel)]="temporadaEstadios" [attr.aria-label]="'season' | transloco">
+    <button (click)="equiposEstadios()">{{ 'teams_stadiums' | transloco }}</button>
+  </div>
+  <div class="accion"><button (click)="entrenadores()">{{ 'coaches' | transloco }}</button></div>
+  <div class="accion">
+    <input type="number" [placeholder]="'league_id' | transloco" [(ngModel)]="idLigaClasificaciones" [attr.aria-label]="'league_id' | transloco">
+    <input type="number" [placeholder]="'season' | transloco" [(ngModel)]="temporadaClasificaciones" [attr.aria-label]="'season' | transloco">
+    <button (click)="clasificaciones()">{{ 'standings' | transloco }}</button>
+  </div>
+  <div class="accion">
+    <input type="number" [placeholder]="'season' | transloco" [(ngModel)]="temporadaLigas" [attr.aria-label]="'season' | transloco">
+    <button (click)="ligas()">{{ 'leagues' | transloco }}</button>
+  </div>
+  <div class="accion">
+    <input type="number" [placeholder]="'season' | transloco" [(ngModel)]="temporadaJugadores" [attr.aria-label]="'season' | transloco">
+    <button (click)="jugadoresCompletos()">{{ 'complete_players' | transloco }}</button>
+  </div>
+  <div class="accion"><button (click)="perfilesJugadores()">{{ 'player_profiles' | transloco }}</button></div>
+  <div class="accion"><button (click)="syncEnVivo()">{{ 'live_sync' | transloco }}</button></div>
+  <div class="accion"><button (click)="eventosHistoricos()">{{ 'historical_events' | transloco }}</button></div>
+</div>

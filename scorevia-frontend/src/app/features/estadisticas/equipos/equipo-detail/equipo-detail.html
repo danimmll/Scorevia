@@ -1,0 +1,159 @@
+<a routerLink="/estadisticas/equipos" class="volver">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  {{ 'teams' | transloco }}
+</a>
+
+@if (cargando()) {
+  <sv-cargando [filas]="6" />
+} @else if (error()) {
+  <p class="error-message">{{ error() }}</p>
+} @else if (equipo(); as e) {
+
+  <div class="hero">
+    <img svImagen="equipo" [src]="e.logo" [alt]="e.nombre" class="escudo">
+    <div class="info">
+      <h1>{{ e.nombre }}</h1>
+      <div class="stats">
+        @if (e.pais) { <div class="stat"><span class="stat-label">{{ 'country' | transloco }}</span><span class="stat-value">{{ e.pais }}</span></div> }
+        @if (e.fundacion) { <div class="stat"><span class="stat-label">{{ 'founded' | transloco }}</span><span class="stat-value">{{ e.fundacion }}</span></div> }
+        @if (e.codigo) { <div class="stat"><span class="stat-label">{{ 'code' | transloco }}</span><span class="stat-value">{{ e.codigo }}</span></div> }
+      </div>
+
+      <!-- Accesos a las temporadas pasadas: plantilla, entrenador, titulos y lo que hizo
+           cada jugador ese ano. Todo de datos ya ingeridos, cero peticiones a la API. -->
+      @if (temporadasVisibles().length > 0) {
+        <div class="temporadas-acceso">
+          <span class="temporadas-etiqueta">{{ 'seasons' | transloco }}</span>
+          @for (t of temporadasVisibles(); track t) {
+            <a class="temporada-chip mono"
+               [routerLink]="['/estadisticas/equipos', e.idEquipo, 'temporada', t]">{{ t }}</a>
+          }
+        </div>
+      }
+
+      @if (entrenador(); as tec) {
+        <a [routerLink]="['/estadisticas/entrenadores', tec.idEntrenador]" class="entrenador-link">
+          <img svImagen="entrenador" [src]="tec.foto" [alt]="tec.nombre" class="avatar-mini">
+          Entrenador: {{ tec.nombre }}
+        </a>
+      }
+    </div>
+  </div>
+
+  @if (e.estadio) {
+    <section class="estadio">
+      <img svImagen="estadio" [src]="e.estadio.fotoUrl" [alt]="e.estadio.nombre" class="estadio-foto">
+      <div class="estadio-info">
+        <h2>{{ e.estadio.nombre }}</h2>
+        <div class="stats">
+          @if (e.estadio.ciudad) { <div class="stat"><span class="stat-label">{{ 'city' | transloco }}</span><span class="stat-value">{{ e.estadio.ciudad }}</span></div> }
+          @if (e.estadio.capacidad) { <div class="stat"><span class="stat-label">{{ 'capacity_2' | transloco }}</span><span class="stat-value">{{ e.estadio.capacidad | number }}</span></div> }
+          @if (e.estadio.superficie) { <div class="stat"><span class="stat-label">{{ 'surface' | transloco }}</span><span class="stat-value">{{ e.estadio.superficie }}</span></div> }
+        </div>
+      </div>
+    </section>
+  }
+
+  <section>
+    <h2>{{ 'coaching_history' | transloco }}</h2>
+    <ul class="lista">
+      @for (h of banquilloPaginado.visibles(); track h.idEntrenador + '-' + h.temporada) {
+        <li class="historial-entrenador-row" [routerLink]="['/estadisticas/entrenadores', h.idEntrenador]">
+          <img svImagen="entrenador" [src]="h.fotoEntrenador" [alt]="h.nombreEntrenador" class="avatar-mini">
+          <span class="lista-titulo">{{ h.nombreEntrenador }}</span>
+          <span class="mono lista-sub">{{ h.temporada }}</span>
+        </li>
+      } @empty {
+        <li class="vacio">{{ 'no_coaching_history_on_record_yet' | transloco }}</li>
+      }
+    </ul>
+    <sv-paginador [pagina]="banquilloPaginado.pagina()" [totalPaginas]="banquilloPaginado.totalPaginas()"
+                  etiqueta="entrenadores" (cambio)="banquilloPaginado.pagina.set($event)" />
+  </section>
+
+  <section>
+    <h2>{{ 'recent_matches' | transloco }}</h2>
+    <ul class="lista">
+      @for (p of jugados(); track p.idPartido) {
+          <li class="partido-row" [routerLink]="['/partidos', p.idPartido]" [queryParams]="{local: p.idEquipoLocal, visitante: p.idEquipoVisitante}">
+            <span class="mono partido-fecha">{{ p.fecha | date:'d MMM, HH:mm' }}</span>
+            <span class="partido-encuentro">
+              <img svImagen="equipo" [src]="p.escudoLocal" alt="" class="escudo-mini">
+              {{ p.equipoLocal }}
+              <span class="mono resultado">{{ p.resultadoLocal }} - {{ p.resultadoVisitante }}</span>
+              {{ p.equipoVisitante }}
+              <img svImagen="equipo" [src]="p.escudoVisitante" alt="" class="escudo-mini">
+            </span>
+            <span class="partido-liga">{{ p.liga }}</span>
+          </li>
+      } @empty {
+        <li class="vacio">{{ 'no_played_matches_on_record' | transloco }}</li>
+      }
+    </ul>
+      <sv-paginador [pagina]="paginaJugados()" [totalPaginas]="totalPaginasJugados()" (cambio)="cargarJugados($event)" />
+  </section>
+
+  <section>
+    <h2>{{ 'upcoming_matches' | transloco }}</h2>
+    <ul class="lista">
+      @for (p of programados(); track p.idPartido) {
+          <li class="partido-row" [routerLink]="['/partidos', p.idPartido]" [queryParams]="{local: p.idEquipoLocal, visitante: p.idEquipoVisitante}">
+            <span class="mono partido-fecha">{{ p.fecha | date:'d MMM, HH:mm' }}</span>
+            <span class="partido-encuentro">
+              <img svImagen="equipo" [src]="p.escudoLocal" alt="" class="escudo-mini">
+              {{ p.equipoLocal }}
+              <span class="vs">vs</span>
+              {{ p.equipoVisitante }}
+              <img svImagen="equipo" [src]="p.escudoVisitante" alt="" class="escudo-mini">
+            </span>
+            <span class="partido-liga">{{ p.liga }}</span>
+          </li>
+      } @empty {
+        <li class="vacio">{{ 'no_scheduled_matches' | transloco }}</li>
+      }
+    </ul>
+      <sv-paginador [pagina]="paginaProgramados()" [totalPaginas]="totalPaginasProgramados()" (cambio)="cargarProgramados($event)" />
+  </section>
+
+  <section>
+    <h2>{{ 'squad' | transloco }}</h2>
+    <div class="plantilla-grid">
+      @for (j of plantilla(); track j.idJugador) {
+        <a [routerLink]="['/estadisticas/jugadores', j.idJugador]" class="jugador-card">
+          <img svImagen="jugador" [src]="j.foto" [alt]="j.nombre" class="jugador-foto">
+          <div class="jugador-info">
+            <div class="jugador-nombre">{{ j.nombre }}</div>
+            <div class="jugador-meta">
+              @if (j.dorsal) { <span class="jugador-dorsal">#{{ j.dorsal }}</span> }
+              {{ j.posicion }}
+            </div>
+          </div>
+        </a>
+      } @empty {
+        <p class="vacio">{{ 'no_players_on_record_for_this_team' | transloco }}</p>
+      }
+    </div>
+
+      <sv-paginador [pagina]="paginaPlantilla()" [totalPaginas]="totalPaginasPlantilla()" (cambio)="cargarPlantilla($event)" />
+  </section>
+
+  <section>
+    <h2>{{ 'transfers' | transloco }}</h2>
+    <ul class="lista">
+      @for (t of traspasosVisibles(); track t.idTraspaso ?? $index) {
+        <li>
+          <span class="lista-titulo">{{ t.nombreJugador }}</span>
+          <span class="lista-sub">
+            <img svImagen="equipo" [src]="t.escudoOrigen" [alt]="t.equipoOrigen" class="escudo-mini">
+            <img svImagen="equipo" [src]="t.escudoDestino" [alt]="t.equipoDestino" class="escudo-mini">
+            {{ descripcion(t).clave | transloco: descripcion(t).params }} · {{ etiquetaTipo(t.tipo) | transloco }}@if (t.coste) { · {{ t.coste }} }
+          </span>
+        </li>
+      } @empty {
+        <li class="vacio">{{ 'no_transfers_on_record' | transloco }}</li>
+      }
+    </ul>
+      <sv-paginador [pagina]="paginaTraspasos()" [totalPaginas]="totalPaginasTraspasos()" (cambio)="paginaTraspasos.set($event)" />
+  </section>
+
+}

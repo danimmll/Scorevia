@@ -1,0 +1,219 @@
+<a class="saltar-al-contenido" href="#contenido">{{ 'skip_to_content' | transloco }}</a>
+<div class="shell">
+  <header class="topnav">
+    <a routerLink="/" class="brand">
+      <svg width="22" height="22" viewBox="0 0 52 52" fill="none">
+        <circle cx="26" cy="26" r="23" stroke="var(--sv-accent-text)" stroke-width="3"/>
+        <line x1="8" y1="34" x2="44" y2="18" stroke="var(--sv-accent-text)" stroke-width="3"/>
+        <circle cx="26" cy="26" r="5" fill="var(--sv-accent-text)"/>
+      </svg>
+      <span>ScoreVia</span>
+    </a>
+
+    <div class="buscador-global">
+      <input type="search" [placeholder]="'search_team_player_or_league' | transloco"
+             [attr.aria-label]="'search_team_player_or_competition' | transloco"
+             role="combobox" aria-expanded="true" aria-controls="buscador-resultados"
+             [value]="busqueda()" (input)="buscar($any($event.target).value)">
+      @if (busqueda().trim()) {
+        <div class="buscador-resultados" id="buscador-resultados" role="listbox">
+          @if (buscando()) {
+            <div class="buscador-cargando">{{ 'searching' | transloco }}</div>
+          } @else if (!hayResultados()) {
+            <div class="buscador-vacio">Sin resultados para "{{ busqueda() }}"</div>
+          } @else {
+            @if (resultadosEquipos().length > 0) {
+              <div class="buscador-grupo-titulo">{{ 'teams' | transloco }}</div>
+              @for (e of resultadosEquipos(); track e.idEquipo) {
+                <button type="button" class="buscador-item"
+                        (click)="irAResultado(['/estadisticas/equipos', e.idEquipo])">
+                  <img svImagen="equipo" [src]="e.logo" alt="" class="buscador-icono">
+                  <span>{{ e.nombre }}</span>
+                  <span class="buscador-sub">{{ e.pais }}</span>
+                </button>
+              }
+            }
+            @if (resultadosJugadores().length > 0) {
+              <div class="buscador-grupo-titulo">{{ 'players' | transloco }}</div>
+              @for (j of resultadosJugadores(); track j.idJugador) {
+                <button type="button" class="buscador-item"
+                        (click)="irAResultado(['/estadisticas/jugadores', j.idJugador])">
+                  <img svImagen="jugador" [src]="j.foto" alt="" class="buscador-icono buscador-icono--redonda">
+                  <span>{{ j.nombre }}</span>
+                  <span class="buscador-sub">{{ j.posicion || j.nacionalidad }}</span>
+                </button>
+              }
+            }
+            @if (resultadosLigas().length > 0) {
+              <div class="buscador-grupo-titulo">{{ 'competitions' | transloco }}</div>
+              @for (l of resultadosLigas(); track l.idLiga) {
+                <button type="button" class="buscador-item"
+                        (click)="irAResultado(['/estadisticas/clasificacion'], l.idLiga)">
+                  <img svImagen="liga" [src]="l.logo" alt="" class="buscador-icono">
+                  <span>{{ l.nombre }}</span>
+                  <span class="buscador-sub">{{ l.pais }}</span>
+                </button>
+              }
+            }
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Las cuatro secciones de datos van sueltas y al mismo nivel. Estuvieron colgando de
+         un único desplegable "Estadísticas", y eso escondía justo lo que más se busca:
+         para llegar a un equipo o a un jugador había que saber que estaban ahí dentro.
+         Entrenadores y Comparador sí siguen agrupados, pero dentro de la página desde la
+         que se llega a ellos de forma natural (Equipos y Partidos), no en la barra.
+         Admin sigue en desplegable porque son muchos enlaces poco usados. -->
+    <nav class="topnav-links">
+      <a routerLink="/partidos" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">{{ 'matches' | transloco }}</a>
+      <a routerLink="/estadisticas/equipos" routerLinkActive="active" class="nav-item">{{ 'teams' | transloco }}</a>
+      <a routerLink="/estadisticas/jugadores" routerLinkActive="active" class="nav-item">{{ 'players' | transloco }}</a>
+      <a routerLink="/estadisticas/clasificacion" routerLinkActive="active" class="nav-item">{{ 'competitions' | transloco }}</a>
+
+      @if (authService.esAdmin()) {
+        <div class="topnav-dropdown" [class.abierto]="menuAbierto() === 'admin'">
+          <button type="button" class="nav-item nav-item--dropdown" (click)="alternarMenu('admin')"
+                  [attr.aria-expanded]="menuAbierto() === 'admin'">
+            Admin
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="topnav-dropdown-menu" (click)="menuAbierto.set(null)">
+            <a routerLink="/admin/dashboard" routerLinkActive="active">Dashboard</a>
+            <a routerLink="/admin/usuarios" routerLinkActive="active">{{ 'users' | transloco }}</a>
+            <a routerLink="/admin/roles" routerLinkActive="active">{{ 'roles' | transloco }}</a>
+            <a routerLink="/admin/reportes" routerLinkActive="active">{{ 'reports' | transloco }}</a>
+            <a routerLink="/admin/incidencias" routerLinkActive="active">{{ 'issues' | transloco }}</a>
+            <a routerLink="/admin/sync" routerLinkActive="active">Sync</a>
+          </div>
+        </div>
+      }
+    </nav>
+
+    <div class="topnav-right">
+      <!-- Idioma: mismo patron que el tema, dos botones y el activo marcado. Es un
+           role="group" y no un <select> porque son dos opciones y se ven de un vistazo. -->
+      <div class="lang-toggle" role="group" [attr.aria-label]="'change_language' | transloco">
+        @for (idioma of idiomas; track idioma.codigo) {
+          <button type="button" (click)="idiomaService.cambiar(idioma.codigo)"
+                  [class.on]="idiomaService.actual() === idioma.codigo"
+                  [attr.aria-pressed]="idiomaService.actual() === idioma.codigo"
+                  [title]="idioma.nombre">{{ idioma.codigo | uppercase }}</button>
+        }
+      </div>
+
+      <div class="theme-toggle" role="group" [attr.aria-label]="'change_theme' | transloco">
+        <button (click)="themeService.set('dark')" [class.on]="themeService.theme() === 'dark'" [attr.aria-label]="'dark_theme' | transloco" [title]="'dark_theme' | transloco">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+        </button>
+        <button (click)="themeService.set('light')" [class.on]="themeService.theme() === 'light'" [attr.aria-label]="'light_theme' | transloco" [title]="'light_theme' | transloco">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+        </button>
+      </div>
+
+      @if (authService.currentUser()) {
+        <div class="profile-menu">
+          @if (authService.currentUser()?.nickname) {
+            <div class="avatar">{{ authService.currentUser()!.nickname!.charAt(0) | uppercase }}</div>
+          } @else {
+            <div class="avatar">{{ authService.currentUser()!.nombreUsuario.charAt(0) | uppercase }}</div>
+          }
+          <div class="who-block">
+            <a routerLink="/perfil" class="who">{{ authService.currentUser()!.nickname ?? authService.currentUser()!.nombreUsuario }}</a>
+            <div class="role">{{ planActual() }}</div>
+          </div>
+          <a routerLink="/favoritos" routerLinkActive="active" class="icon-btn" [title]="'favourites' | transloco">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"></path></svg>
+          </a>
+          <button (click)="logout()" class="icon-btn" [title]="'log_out' | transloco">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          </button>
+        </div>
+      } @else {
+        <div class="guest-menu">
+          <a routerLink="/login" class="link-entrar">{{ 'enter' | transloco }}</a>
+          <a routerLink="/register" class="btn-registro">{{ 'sign_up_2' | transloco }}</a>
+        </div>
+      }
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="rail">
+      <div class="rail-label">
+        <span class="dot" [class.live]="partidosEnVivo().length > 0"></span>
+        {{ 'live_3' | transloco }}
+      </div>
+      @for (p of vivosDestacados(); track p.idPartido) {
+        <!-- Una fila por equipo (escudo · nombre · goles), como en cualquier marcador en
+             directo: así se lee de un vistazo quién va ganando, en vez de tener que casar
+             "2 - 1" con dos nombres apilados al lado. -->
+        <a [routerLink]="['/partidos', p.idPartido]" [queryParams]="{local: p.idEquipoLocal, visitante: p.idEquipoVisitante}" class="rail-chip">
+          <!-- Cabecera: de qué competición es y en qué minuto va. Sin esto, dos partidos de
+               dos "Primera División" distintas eran indistinguibles, y no había forma de
+               saber si el 1-0 era del minuto 5 o del 89. -->
+          <div class="rail-meta">
+            @if (p.logoLiga) {
+              <img svImagen="liga" [src]="p.logoLiga" alt="" class="rail-liga-logo">
+            }
+            @if (p.banderaLiga) {
+              <img [src]="p.banderaLiga" alt="" class="rail-bandera" loading="lazy">
+            }
+            <span class="rail-liga-nombre">{{ p.liga }}</span>
+            @if (etiquetaMinuto(p); as minuto) {
+              <span class="rail-minuto">{{ minuto.clave | transloco: minuto.params }}</span>
+            }
+          </div>
+          <div class="rail-fila" [class.rail-fila--gana]="(p.resultadoLocal ?? 0) > (p.resultadoVisitante ?? 0)">
+            <img svImagen="equipo" [src]="p.escudoLocal" alt="" class="rail-escudo">
+            <span class="rail-equipo">{{ p.equipoLocal }}</span>
+            <span class="rail-goles mono">{{ p.resultadoLocal ?? 0 }}</span>
+          </div>
+          <div class="rail-fila" [class.rail-fila--gana]="(p.resultadoVisitante ?? 0) > (p.resultadoLocal ?? 0)">
+            <img svImagen="equipo" [src]="p.escudoVisitante" alt="" class="rail-escudo">
+            <span class="rail-equipo">{{ p.equipoVisitante }}</span>
+            <span class="rail-goles mono">{{ p.resultadoVisitante ?? 0 }}</span>
+          </div>
+        </a>
+      } @empty {
+        <p class="rail-empty">{{ 'no_live_matches_right_now' | transloco }}</p>
+      }
+
+      <!-- Dice cuántos quedan fuera en vez de un "ver todos" genérico: con 147 partidos a la
+           vez, saber que hay 142 más es justo lo que hace que merezca la pena entrar. -->
+      <a routerLink="/partidos" class="rail-ver-todos">
+        @if (partidosEnVivo().length > vivosDestacados().length) {
+          {{ 'see_the_n_live' | transloco: { n: partidosEnVivo().length } }}
+        } @else {
+          {{ 'see_all_matches' | transloco }}
+        }
+      </a>
+
+      <!-- ===================================================== Competiciones ==== -->
+      <!-- Accesos directos a lo que la gente viene a mirar. Antes, para ver cómo va la
+           Premier había que entrar en Competiciones, buscar el país y dar con su escudo en
+           una rejilla de más de mil. -->
+      <div class="rail-label rail-label--seccion">{{ 'competitions' | transloco }}</div>
+
+      @for (liga of competicionesDestacadas(); track liga.idLiga) {
+        <a class="rail-liga" [routerLink]="['/estadisticas/clasificacion']"
+           [queryParams]="{ liga: liga.idLiga }" [title]="liga.nombre">
+          <img svImagen="liga" [src]="liga.logo" alt="" class="rail-liga-escudo">
+          @if (liga.bandera) {
+            <img [src]="liga.bandera" alt="" class="rail-bandera" loading="lazy">
+          }
+          <span class="rail-liga-texto">{{ liga.nombre }}</span>
+        </a>
+      }
+
+      <a routerLink="/estadisticas/clasificacion" class="rail-ver-todos rail-ver-todos--ligas">
+        {{ 'all_competitions' | transloco }}
+      </a>
+    </aside>
+
+    <main class="content" id="contenido" tabindex="-1">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

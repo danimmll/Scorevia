@@ -1,0 +1,144 @@
+<a routerLink="/estadisticas/jugadores" class="volver">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+  {{ 'players' | transloco }}
+</a>
+
+@if (cargando()) {
+  <sv-cargando [filas]="6" />
+} @else if (error()) {
+  <p class="error-message">{{ error() }}</p>
+} @else if (jugador(); as j) {
+
+  <div class="hero">
+    <img svImagen="jugador" [src]="j.foto" [alt]="j.nombre" class="foto">
+
+    <div class="info">
+      <div class="nombre-row">
+        <h1>{{ j.nombre }}</h1>
+        @if (j.dorsal) {
+          <span class="dorsal">#{{ j.dorsal }}</span>
+        }
+      </div>
+      @if (j.nombreCompleto && j.nombreCompleto !== j.nombre) {
+        <p class="nombre-completo">{{ j.nombreCompleto }}</p>
+      }
+      @if (j.posicion) {
+        <span class="chip chip--posicion">{{ j.posicion }}</span>
+      }
+
+      @if (j.equipo) {
+        <a [routerLink]="['/estadisticas/equipos', j.equipo.idEquipo]" class="equipo-link">
+          <img svImagen="equipo" [src]="j.equipo.logo" [alt]="j.equipo.nombre" class="escudo">
+          {{ j.equipo.nombre }}
+        </a>
+      }
+
+      <div class="stats">
+        @if (j.nacionalidad) { <div class="stat"><span class="stat-label">{{ 'nationality' | transloco }}</span><span class="stat-value">{{ j.nacionalidad }}</span></div> }
+        @if (j.edad) { <div class="stat"><span class="stat-label">{{ 'age' | transloco }}</span><span class="stat-value">{{ j.edad }} años</span></div> }
+        @if (j.altura) { <div class="stat"><span class="stat-label">{{ 'height' | transloco }}</span><span class="stat-value">{{ j.altura }}</span></div> }
+        @if (j.peso) { <div class="stat"><span class="stat-label">{{ 'weight' | transloco }}</span><span class="stat-value">{{ j.peso }}</span></div> }
+        @if (j.lugarNacimiento) { <div class="stat"><span class="stat-label">{{ 'place_of_birth' | transloco }}</span><span class="stat-value">{{ j.lugarNacimiento }}</span></div> }
+      </div>
+
+      <!-- 109.058 fichas no están en el catálogo de la API, así que les faltan campos para
+           siempre. Mejor decirlo que dejar los huecos sin explicar. -->
+      @if (j.perfilVerificado === false) {
+        <p class="nota-cobertura">{{ 'coverage_profile_unverified' | transloco }}</p>
+      }
+    </div>
+  </div>
+
+  <!-- =========================================== Palmarés (línea del tiempo) ==== -->
+  <section>
+    <h2>{{ 'honours' | transloco }}</h2>
+    <!-- Dos lecturas del mismo palmarés: la línea del tiempo responde a "¿cuándo?" y el
+         agrupado de abajo a "¿cuántas tiene de cada?". Desde que se quitaron las filas
+         resumen de la API (migración 2026-09-06), todas las entradas tienen temporada, así
+         que la línea del tiempo ya no tiene un cajón de "sin fecha" al final. -->
+    <sv-linea-trofeos [trofeos]="trofeos()" />
+
+    <h3 class="subtitulo-palmares">{{ 'by_competition' | transloco }}</h3>
+    <div class="trofeos-grid">
+      @for (t of trofeosAgrupados(); track t.competicion + '__' + t.pais) {
+        <div class="trofeo-card" [title]="t.temporadas.join(', ')">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="trofeo-icono">
+            <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"></path>
+            <path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4 4 4.3M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4-4 4.3"></path>
+          </svg>
+          <div>
+            <div class="trofeo-competicion">
+              {{ t.competicion }}
+              @if (t.temporadas.length > 1) { <span class="trofeo-contador">x{{ t.temporadas.length }}</span> }
+            </div>
+            <div class="trofeo-meta">{{ t.pais }}</div>
+          </div>
+        </div>
+      } @empty {
+        <p class="vacio">{{ 'no_trophies_on_record' | transloco }}</p>
+      }
+    </div>
+  </section>
+
+  <div class="dos-columnas">
+    <section>
+      <h2>{{ 'absences' | transloco }}</h2>
+      <ul class="lista">
+        @for (b of bajasVisibles(); track b.idBaja) {
+          <li>
+            <span class="lista-titulo">{{ b.tipo }}</span>
+            <span class="lista-sub">{{ b.causa }} · {{ b.fechaInicio }} — {{ finBaja(b) }}</span>
+          </li>
+        } @empty {
+          <li class="vacio">
+            {{ 'no_absences_on_record' | transloco }}
+            <!-- "No consta ninguna baja" y "no lo hemos preguntado" no son lo mismo, y la
+                 ficha no debería hacerlos pasar por lo mismo. -->
+            @if (j.bajasConsultadas === false) {
+              <span class="nota-cobertura">{{ 'coverage_absences_not_checked' | transloco }}</span>
+            }
+          </li>
+        }
+      </ul>
+        <sv-paginador [pagina]="paginaBajas()" [totalPaginas]="totalPaginasBajas()" (cambio)="paginaBajas.set($event)" />
+    </section>
+
+    <section>
+      <h2>{{ 'transfers' | transloco }}</h2>
+      <ul class="lista">
+        @for (t of traspasosVisibles(); track t.idTraspaso ?? $index) {
+          <li class="lista-item--traspaso">
+            <span class="lista-titulo">
+              <img svImagen="equipo" [src]="t.escudoOrigen" [alt]="t.equipoOrigen" class="escudo-mini">
+              <img svImagen="equipo" [src]="t.escudoDestino" [alt]="t.equipoDestino" class="escudo-mini">
+              {{ descripcion(t).clave | transloco: descripcion(t).params }}
+            </span>
+            <span class="lista-sub">
+              {{ etiquetaTipo(t.tipo) | transloco }}@if (t.coste) { · {{ t.coste }} } · {{ t.fecha }}
+            </span>
+          </li>
+        } @empty {
+          <li class="vacio">{{ 'no_transfers_on_record' | transloco }}</li>
+        }
+      </ul>
+        <sv-paginador [pagina]="paginaTraspasos()" [totalPaginas]="totalPaginasTraspasos()" (cambio)="paginaTraspasos.set($event)" />
+    </section>
+  </div>
+
+  <section>
+    <h2>{{ 'shirt_number_history' | transloco }}</h2>
+    <ul class="lista lista--dorsales">
+      @for (d of dorsalesAgrupados(); track d.idEquipo + '-' + d.dorsal + '-' + d.desde) {
+        <li>
+          <img svImagen="equipo" [src]="d.escudoEquipo" [alt]="d.nombreEquipo" class="escudo-mini">
+          <span class="dorsal-mini">#{{ d.dorsal }}</span>
+          <span class="lista-titulo">{{ d.nombreEquipo }}</span>
+          <span class="lista-sub">{{ d.desde === d.hasta ? d.desde : (d.desde + '–' + d.hasta) }} @if (d.posicion) { · {{ etiquetaPosicionDorsal(d.posicion) }} }</span>
+        </li>
+      } @empty {
+        <li class="vacio">{{ 'no_shirt_number_history' | transloco }}</li>
+      }
+    </ul>
+  </section>
+
+}

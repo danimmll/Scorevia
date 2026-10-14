@@ -1,0 +1,490 @@
+@use '@angular/material' as mat;
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- Paleta ScoreVia: variables propias ---
+   --sv-accent / --sv-amber son el color de RELLENO (botones, chips activos) y se
+   quedan igual en los dos temas -- son claros de por sí, así que el texto que va
+   encima siempre es --sv-accent-ink/--sv-amber-ink (oscuro), también constante.
+   --sv-accent-text / --sv-amber-text es para cuando el color pinta texto o un
+   icono SUELTO directamente sobre el fondo (un punto "en vivo", un
+   contador) -- ahí sí hace falta una versión más oscura en el tema claro, o no
+   habría contraste suficiente contra un fondo blanco/crema. */
+/* Tema Oscuro (Por defecto) */
+html {
+  --sv-bg: #0A0D10;
+  --sv-surface: #12161B;
+  --sv-surface-2: #1B2129;
+  --sv-surface-hover: #232A32;
+  --sv-border: #262E32;
+  --sv-border-strong: #3A434B;
+  --sv-text-primary: #F3F6F8;
+  /* Texto grande (titulares, marcadores, la marca). Un blanco casi puro sobre un fondo casi
+     negro produce halacion: a 26 o 40px las letras "queman" y se emborronan los bordes. Es
+     el mismo texto un punto mas apagado -- sigue en 13,8:1 de contraste, muy por encima del
+     7:1 que pide AAA, pero deja de deslumbrar. */
+  --sv-text-display: #D6DEE5;
+  --sv-text-secondary: #8D98A3;
+  --sv-text-muted: #566068;
+  --sv-accent: #C9FF4D;
+  --sv-accent-ink: #0A0D10;
+  --sv-accent-text: #C9FF4D;
+  --sv-amber: #FFB020;
+  --sv-amber-ink: #0A0D10;
+  --sv-amber-text: #FFB020;
+  --sv-flame: #FF7A45;
+  --sv-danger: #E5484D;
+  --sv-warning: #FFB020;
+  --sv-pitch-line: rgba(201,255,77,0.05);
+
+  height: 100%;
+
+  /* Tema Material 3 (Opcional si usas componentes de Material) */
+  @include mat.theme((
+    color: ( theme-type: dark, primary: mat.$azure-palette, tertiary: mat.$blue-palette ),
+    typography: ( plain-family: 'Archivo', brand-family: 'Anton' ),
+    density: 0,
+  ));
+}
+
+/* Tema Claro (Se activa con la clase .light en el HTML) */
+html.light {
+  --sv-bg: #F7F5F1;
+  --sv-surface: #FFFFFF;
+  --sv-surface-2: #EFEBE4;
+  --sv-surface-hover: #E7E2D8;
+  --sv-border: #E2DDD3;
+  --sv-border-strong: #C9C2B3;
+  --sv-text-primary: #1B1A17;
+  /* En claro no hay halacion (el texto es oscuro), asi que es el mismo color. */
+  --sv-text-display: #1B1A17;
+  --sv-text-secondary: #6B6459;
+  --sv-text-muted: #A39B8C;
+  --sv-accent: #C9FF4D;
+  --sv-accent-ink: #0A0D10;
+  --sv-accent-text: #5C7A00;
+  --sv-amber: #FFB020;
+  --sv-amber-ink: #0A0D10;
+  --sv-amber-text: #A6650A;
+  --sv-flame: #FF7A45;
+  --sv-danger: #C7373C;
+  --sv-warning: #A6650A;
+  --sv-pitch-line: rgba(92,122,0,0.05);
+
+  @include mat.theme((
+    color: ( theme-type: light, primary: mat.$azure-palette, tertiary: mat.$blue-palette )
+  ));
+}
+
+/* ============================================================================
+   ESCALA: espacio, radios, sombras y movimiento
+
+   Antes de esto solo había tokens de color, y el resultado se puede medir: en los 45 .scss
+   del proyecto había **81 valores distintos de padding**, 27 de gap y 28 de font-size (con
+   perlas como 12.5px y 13.5px). No es un problema de gusto, es que no existía una escala:
+   cada componente inventaba su propio ritmo y la página se lee como una lista de cajas
+   apretadas en vez de como secciones separadas.
+
+   Los gap más usados eran 6, 8 y 10px. Ese es literalmente el "todo pegado": el aire entre
+   dos cosas relacionadas y el aire entre dos secciones distintas medían igual, así que la
+   vista no tenía forma de saber dónde acaba una y empieza otra.
+
+   La escala va de 4 en 4 hasta 24 y luego salta, que es como se hacen: los saltos grandes
+   son los que separan bloques y por eso tienen que notarse.
+   ============================================================================ */
+:root {
+  /* Espacio. Dentro de un componente: 1-3. Entre elementos hermanos: 4-5. Entre secciones: 6-8. */
+  --sv-space-1: 4px;
+  --sv-space-2: 8px;
+  --sv-space-3: 12px;
+  --sv-space-4: 16px;
+  --sv-space-5: 20px;
+  --sv-space-6: 28px;
+  --sv-space-7: 40px;
+  --sv-space-8: 56px;
+
+  /* Radios. `pill` para chips y `round` para avatares; el resto, cuatro tamaños y ya. */
+  --sv-radius-xs: 4px;
+  --sv-radius-sm: 6px;
+  --sv-radius-md: 10px;
+  --sv-radius-lg: 14px;
+  --sv-radius-xl: 20px;
+  --sv-radius-pill: 999px;
+  --sv-radius-round: 50%;
+
+  /* Sombras. La clave para que una tarjeta se despegue del fondo sin dibujarle un borde
+     más gordo; con el borde solo, todo pesa lo mismo. */
+  --sv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --sv-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.20);
+  --sv-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.28);
+
+  /* Movimiento. Una sola familia de curvas y tres duraciones, para que todo el sitio se
+     mueva con el mismo carácter en vez de cada componente con el suyo. */
+  --sv-dur-1: 120ms;   /* respuesta al toque: hover, active */
+  --sv-dur-2: 220ms;   /* aparecer, desplegar */
+  --sv-dur-3: 420ms;   /* celebrar, revelar */
+  --sv-ease: cubic-bezier(0.22, 0.61, 0.36, 1);      /* salida suave, la de siempre */
+  --sv-ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1); /* con rebote, para lo que premia */
+
+  /* Tipografía. Ocho tamaños. Parecen muchos, pero antes de la escala había 28 distintos
+     en los 45 .scss, con 9.5, 10.5, 11.5, 12.5, 13.5 y 14.5 conviviendo: seis tamaños
+     dentro de un margen de cinco píxeles, que a ojo son el mismo tamaño mal puesto. Los
+     dos últimos (3xl y 4xl) son para las cifras grandes de las fichas y los marcadores,
+     que antes iban a 30, 32, 36 y 40 sin criterio. */
+  /* 11px y 12.5px eran demasiado pequeños para el uso que se les da: de los 333 tamaños
+     declarados en el sitio, 202 son estos dos. Un tamaño de nota al pie llevando el 61% del
+     texto es parte de por qué la pantalla se lee apretada. Suben lo justo para que se lean
+     sin que nada se descuadre; los seis de arriba se quedan igual. */
+  --sv-text-xs: 12px;
+  --sv-text-sm: 13px;
+  --sv-text-md: 14px;
+  --sv-text-lg: 16px;
+  --sv-text-xl: 20px;
+  --sv-text-2xl: 26px;
+  --sv-text-3xl: 32px;
+  --sv-text-4xl: 40px;
+}
+
+/* Una sección de página: el bloque que separa "Palmarés" de "Traspasos". El aire de abajo
+   es lo que hace que se lean como dos cosas y no como una lista larga. */
+.sv-seccion {
+  margin-bottom: var(--sv-space-7);
+
+  > h2 {
+    margin: 0 0 var(--sv-space-4);
+    font-family: 'Anton', 'Archivo', sans-serif;
+    font-size: var(--sv-text-xl);
+    letter-spacing: 0.3px;
+  }
+}
+
+/* La tarjeta estándar. Estaba copiada literal en 5 ficheros distintos con valores que casi
+   coincidían pero no del todo. */
+.sv-tarjeta {
+  padding: var(--sv-space-4);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-surface);
+}
+
+/* Los titulares y la marca usan el tono de display, no el blanco de cuerpo. Va aqui y no
+   en cada componente porque de los 37 sitios con la fuente Anton solo 4 declaran color:
+   el resto hereda, asi que un token bien puesto los arregla todos de golpe. Quien tenga
+   color propio (acento, apagado) sigue mandando. */
+h1, h2, h3 {
+  color: var(--sv-text-display);
+  /* Los titulares SÍ quieren ir apretados: con el 1.5 del cuerpo, un h1 de dos líneas se
+     abre demasiado y deja de leerse como una sola cosa. */
+  line-height: 1.2;
+}
+
+body {
+  color-scheme: light dark;
+  background-color: var(--sv-bg);
+  color: var(--sv-text-primary);
+  font-family: 'Archivo', var(--mat-sys-body-medium, sans-serif);
+  margin: 0;
+  height: 100%;
+
+  /* No había NINGÚN line-height declarado en el body, así que todo el sitio se pintaba con
+     el del navegador (~1.2), que es interlineado de titular aplicado a párrafos, celdas de
+     tabla y listas. Es la mitad de la sensación de "todo pegado": no es solo que los bloques
+     estén juntos, es que dentro de cada bloque las líneas se tocan. 1.5 es el valor que
+     recomiendan las WCAG para texto corrido. */
+  line-height: 1.5;
+  /* Transición suave al cambiar de claro a oscuro */
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Clases de tipografía global */
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.display { font-family: 'Anton', 'Archivo', sans-serif; }
+/* Cabecera de sección: el título a la izquierda y, a la derecha, la salida hacia la
+   página hermana que ya no está en la barra superior (Entrenadores desde Equipos,
+   Comparador desde Partidos). */
+.cabecera-seccion {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  h1 { margin-bottom: 0; }
+}
+
+/* Los enlaces de "ver todos", "volver", "comparar dos equipos"... Eran texto suelto con un
+   subrayado al pasar por encima, y en medio de tarjetas y tablas se leían como algo pegado
+   ahí, no como parte de la página. Ahora tienen la misma forma que el resto de controles:
+   esquina cortada, borde y reacción al hover y al clic. */
+.enlace-seccion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--sv-accent-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.4em 0.75em;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface-2);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+
+  &:hover {
+    background: var(--sv-surface-hover);
+    border-color: var(--sv-accent-text);
+    transform: translateY(-1px);
+  }
+  &:active { transform: translateY(0) scale(0.97); }
+  &:focus-visible { outline: 2px solid var(--sv-accent-text); outline-offset: 2px; }
+}
+
+/* Escudos de competición sobre fondo oscuro.
+
+   Hay logos dibujados en azul marino o negro sobre transparente —el de la Champions es el
+   ejemplo de manual— que en tema claro se ven perfectos y en tema oscuro se pierden contra
+   el fondo. No es algo que se pueda arreglar imagen a imagen: son cientos, vienen de la API
+   y cada una es como es.
+
+   La solución es la que usan las webs de resultados: una placa clara detrás, que devuelve a
+   cada logo el fondo para el que fue dibujado. Solo en tema oscuro; en claro no hace falta y
+   se vería como un recuadro de más. Y solo a los de competición: los escudos de equipo
+   llevan casi siempre su propio contorno y no lo necesitan. */
+html:not(.light) img.sv-img--liga:not(.img-sustituida) {
+  background: #F2F4F7;
+  border-radius: 3px;
+  padding: 1px;
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enlace-seccion { transition: none; }
+  .enlace-seccion:hover { transform: none; }
+}
+
+/* Imagen que no cargó y ha sido sustituida por el dibujo de relleno: se baja el
+   contraste para que no compita con las fotos reales que tiene al lado. */
+img.img-sustituida { opacity: 0.55; }
+
+/* ============================================================================
+   RITMO DE PÁGINA
+
+   Por qué esto va aquí y no en cada componente.
+
+   La escala de espaciado se aplicó en los 45 .scss y se usa bien (573 de 620
+   declaraciones), pero se quedaron dos cosas a medias, y juntas son la razón de que la
+   pantalla se vea apelmazada:
+
+     1. `.sv-seccion` y `.sv-tarjeta` se escribieron en este mismo fichero y NUNCA se
+        usaron: cero apariciones en las 46 plantillas. El bloque que iba a poner 40px entre
+        "Palmarés" y "Traspasos" era CSS muerto, y cada `<section>` —hay 37— se separaba por
+        su cuenta o no se separaba.
+
+     2. De los 715 usos de la escala, 481 son de los tres primeros escalones —4, 8 y 12px— y
+        solo 7 llegan a los dos últimos, que son justo los que separan bloques. El sitio
+        entero está construido con el espaciado de "dentro de un componente".
+
+   Y hay varias pantallas (todo /admin y favoritos, por ejemplo) cuyo .scss entero son
+   tres líneas. Ahí no hay ninguna clase que retocar.
+
+   DOS DETALLES QUE HAY QUE TENER EN CUENTA AQUÍ:
+
+   - El contenido de una página NO cuelga de `.content`, cuelga del host del componente que
+     el router mete dentro (`main.content > app-favoritos > h1`). Por eso el selector lleva ese
+     `> *` de por medio: sin él no engancha absolutamente nada.
+
+   - Va todo dentro de `:where()`, que aporta CERO especificidad. Así estas reglas son un
+     suelo, no un techo: cualquier componente que ya tenga su propio margen sigue mandando
+     aunque su selector sea más flojo. Sin `:where()`, `.content > * > h2` (0,1,1) le ganaría
+     a un `section h2` (0,0,2) de componente y le cambiaría el diseño a páginas que ya
+     estaban bien.
+   ============================================================================ */
+
+/* Los componentes de página son `display: inline` por defecto, que es lo que hace que sus
+   márgenes se comporten de forma rara y que no establezcan contexto de bloque. */
+main.content > * { display: block; }
+
+:where(main.content > *) {
+  > h1 { margin: 0 0 var(--sv-space-5); }
+  > h2 { margin: var(--sv-space-7) 0 var(--sv-space-4); }
+  > h2:first-child { margin-top: 0; }
+
+  > section { margin-bottom: var(--sv-space-7); }
+  > table,
+  > .tabla-scroll { margin-bottom: var(--sv-space-6); }
+  > form { margin-bottom: var(--sv-space-5); }
+}
+
+/* Cabeceras dentro de una sección: sin esto heredan el margen del navegador, que es
+   proporcional al tamaño de letra y sale distinto en cada sitio. */
+:where(section > h2:first-child, section > h3:first-child) { margin-top: 0; }
+
+/* ============================================================================
+   TABLAS
+
+   Estas tres líneas —width, border-collapse y padding de celda— estaban COPIADAS en 15
+   ficheros, con el padding a `--sv-space-2` (8px) en todos. Ocho píxeles es el espaciado de
+   un chip, no el de una fila de datos que hay que leer de un vistazo.
+   ============================================================================ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sv-text-md);
+}
+
+th, td {
+  text-align: left;
+  padding: var(--sv-space-3) var(--sv-space-4);
+  border-bottom: 1px solid var(--sv-border);
+}
+
+th {
+  font-size: var(--sv-text-sm);
+  font-weight: 600;
+  color: var(--sv-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* La fila entera reacciona al puntero: en una tabla ancha es lo que evita perder el renglón
+   a media lectura. */
+tbody tr:hover { background: var(--sv-surface-hover); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* Una tabla de datos no cabe en un móvil por mucho que se estruje: o se desborda la página
+   entera —y aparece el scroll horizontal del body, que es lo peor que puede pasar— o
+   scrollea ella sola. Doce plantillas tenían tablas sin ningún contenedor.
+   
+   Va en un envoltorio y NO poniendo `display: block` a la propia tabla, que es el truco que
+   circula por ahí: eso convierte thead y tbody en dos tablas independientes y las columnas
+   dejan de alinearse entre la cabecera y los datos. */
+.tabla-scroll {
+  overflow-x: auto;
+  max-inline-size: 100%;
+  /* Sin esto, en el navegador de un móvil el gesto de scroll horizontal dentro de la tabla
+     se lo queda la página. */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================================================
+   FORMULARIOS Y CONTROLES SUELTOS
+   Las pantallas de /admin son formularios sin una sola regla de estilo propia: inputs con
+   el aspecto por defecto del navegador sobre un fondo oscuro, que en tema oscuro salen
+   blancos y desentonan con todo lo demás.
+   ============================================================================ */
+:where(main.content) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    padding: var(--sv-space-2) var(--sv-space-3);
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-sm);
+    background: var(--sv-surface);
+    color: var(--sv-text-primary);
+    font-family: inherit;
+    font-size: var(--sv-text-md);
+  }
+
+  form { display: flex; flex-wrap: wrap; gap: var(--sv-space-3); align-items: center; }
+}
+
+/* ============================================================================
+   FOCO DE TECLADO
+
+   Solo 9 de los 43 .scss declaraban `:focus-visible`. En los otros 34 la navegación con
+   Tab es invisible o casi: el navegador dibuja su anillo por defecto, que sobre los fondos
+   oscuros de aquí apenas se distingue, y varios componentes lo quitan con `outline: none`
+   sin poner nada a cambio.
+
+   Va con `:where()` para que los nueve que ya tienen el suyo lo conserven: esto es el
+   suelo, no el techo.
+   ============================================================================ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--sv-accent-text);
+  outline-offset: 2px;
+  border-radius: var(--sv-radius-xs);
+}
+
+/* Saltar directamente al contenido. Sin esto, quien navega con teclado tiene que pasar por
+   la barra de navegación entera —y por el buscador, que abre un desplegable— en CADA
+   página antes de llegar a lo que venía a leer. */
+.saltar-al-contenido {
+  position: absolute;
+  left: -9999px;
+  top: var(--sv-space-2);
+  z-index: 1000;
+  padding: var(--sv-space-2) var(--sv-space-4);
+  background: var(--sv-accent);
+  color: var(--sv-accent-ink);
+  border-radius: var(--sv-radius-sm);
+  font-weight: 600;
+
+  &:focus {
+    left: var(--sv-space-4);
+  }
+}
+
+/* ============================================================================
+   TITULARES DE PÁGINA
+
+   Esta regla estaba COPIADA, palabra por palabra, en 17 .scss:
+
+       h1 { font-family: 'Anton', ...; font-size: var(--sv-text-2xl); letter-spacing: 0.3px; }
+
+   Y ausente en el resto, que son justo las pantallas sin estilar: en unas el titular es grande
+   y con la fuente de la marca, en otras es texto corriente casi del mismo tamaño que el
+   subtítulo de debajo. No es que estén mal maquetadas, es que nadie copió ahí las cuatro líneas.
+
+   En `:where()` para que los 17 que ya la traen sigan mandando.
+   ============================================================================ */
+:where(main.content > *) {
+  > h1 {
+    font-family: 'Anton', 'Archivo', sans-serif;
+    font-size: var(--sv-text-2xl);
+    letter-spacing: 0.3px;
+  }
+
+  > h2 {
+    font-family: 'Anton', 'Archivo', sans-serif;
+    font-size: var(--sv-text-lg);
+    letter-spacing: 0.3px;
+    color: var(--sv-text-secondary);
+  }
+}
+
+/* ============================================================================
+   ESTADOS: ERROR, VACÍO, CARGANDO
+
+   `.error-message { color: var(--sv-danger); }` estaba copiada 29 veces idéntica, pero se
+   usa en 35 plantillas: en seis de ellas la clase no existía y el texto de error salía del
+   mismo color que el resto. `.vacio` igual (definida en 15, usada en 21). Y `.cargando` se
+   usa en dos plantillas y no estaba definida en NINGUNA.
+   ============================================================================ */
+.error-message {
+  color: var(--sv-danger);
+  margin: var(--sv-space-3) 0;
+}
+
+.vacio {
+  color: var(--sv-text-muted);
+  font-size: var(--sv-text-md);
+}
+
+.cargando {
+  color: var(--sv-text-secondary);
+  font-size: var(--sv-text-md);
+  padding: var(--sv-space-5) 0;
+}
+
+/* Un "no hay nada aquí" dentro de una tabla no es una fila más: se centra y se separa, para
+   que se lea como el estado que es y no como un dato. */
+td .vacio,
+td.vacio,
+tbody tr:only-child td:only-child {
+  color: var(--sv-text-muted);
+}

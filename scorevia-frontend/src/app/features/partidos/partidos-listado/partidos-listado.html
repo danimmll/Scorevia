@@ -1,0 +1,130 @@
+<div class="cabecera-seccion">
+  <h1>{{ 'matches' | transloco }}</h1>
+  <a routerLink="/partidos/comparador" class="enlace-seccion">{{ 'compare_two_teams' | transloco }}</a>
+</div>
+
+@if (error()) {
+  <p class="error-message">{{ error() }}</p>
+}
+
+@if (partidosEnVivo().length > 0) {
+  <h2 class="titulo-vivo">
+    <!-- El mismo punto rojo que llevan las filas, aquí a tamaño de titular: la sección
+         entera se identifica como "esto se está moviendo" antes de leer nada. -->
+    <span class="punto-vivo" aria-hidden="true"></span>
+    {{ 'live_3' | transloco }}
+    <span class="cuenta-total mono">{{ partidosEnVivo().length }}</span>
+  </h2>
+  <div class="tabla-wrap tabla-wrap--vivo">
+    <table>
+      <tbody>
+        <!-- De 5 en 5: una tarde de sábado hay más de mil partidos en directo a la vez. -->
+        @for (partido of enVivoPaginados(); track partido.idPartido) {
+          <tr svFilaPartido [partido]="partido" [mostrarLiga]="true"
+              [routerLink]="['/partidos', partido.idPartido]"
+              [queryParams]="{local: partido.idEquipoLocal, visitante: partido.idEquipoVisitante}"></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+    <sv-paginador [pagina]="paginaEnVivo()" [totalPaginas]="totalPaginasEnVivo()" (cambio)="cambiarPaginaEnVivo($event)" />
+}
+
+<div class="filtros">
+  <!-- Buscador en vez de un <select> con los cien y pico países del catálogo de golpe:
+       para llegar a "Netherlands" había que abrirlo y bajar a mano hasta la N. -->
+  <app-selector-pais [paises]="paises()" [seleccionado]="paisSeleccionado()"
+                     etiquetaTodos="Todos los países" (cambio)="seleccionarPais($event)" />
+
+  @if (paisSeleccionado()) {
+    <select [attr.aria-label]="'filter_by_league' | transloco" (change)="seleccionarLiga(+$any($event.target).value)">
+      <option value="" [selected]="!ligaSeleccionada()">{{ 'all_leagues' | transloco }}</option>
+      @for (grupo of gruposLigasDelPais(); track grupo.categoria) {
+        @if (gruposLigasDelPais().length > 1) {
+          <optgroup [label]="grupo.categoria">
+            @for (liga of grupo.ligas; track liga.idLiga) {
+              <option [value]="liga.idLiga" [selected]="liga.idLiga === ligaSeleccionada()">{{ liga.nombre }}</option>
+            }
+          </optgroup>
+        } @else {
+          @for (liga of grupo.ligas; track liga.idLiga) {
+            <option [value]="liga.idLiga" [selected]="liga.idLiga === ligaSeleccionada()">{{ liga.nombre }}</option>
+          }
+        }
+      }
+    </select>
+  }
+
+  @if (ligaSeleccionada()) {
+    <select [attr.aria-label]="'filter_by_season' | transloco" (change)="seleccionarTemporada(+$any($event.target).value)">
+      @for (t of temporadasDisponibles(); track t) {
+        <option [value]="t" [selected]="t === temporadaSeleccionada()">Temporada {{ t }}</option>
+      }
+    </select>
+  }
+
+  @if (paisSeleccionado()) {
+    <button type="button" (click)="limpiarFiltro()">{{ 'clear_filter' | transloco }}</button>
+  }
+</div>
+
+@if (cargando()) {
+  <sv-cargando [filas]="6" />
+} @else if (ligaSeleccionada()) {
+  <h2>{{ 'league_matches' | transloco }}</h2>
+  <div class="tabla-wrap">
+    <table>
+      <thead><tr><th class="th-cuando">{{ 'when' | transloco }}</th><th>{{ 'match' | transloco }}</th><th>{{ 'competition' | transloco }}</th></tr></thead>
+      <tbody>
+        @for (partido of partidos(); track partido.idPartido) {
+          <tr svFilaPartido [partido]="partido" [mostrarLiga]="true" formatoFecha="fecha"
+              [routerLink]="['/partidos', partido.idPartido]"
+              [queryParams]="{local: partido.idEquipoLocal, visitante: partido.idEquipoVisitante}"></tr>
+        } @empty {
+          <tr><td colspan="3" class="vacio">{{ 'no_matches_for_this_filter' | transloco }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+    <sv-paginador [pagina]="pagina()" [totalPaginas]="totalPaginas()" (cambio)="cargarPagina($event)" />
+} @else {
+  <h2>
+    {{ 'today_s_matches' | transloco }}
+    <span class="cuenta-total mono">{{ gruposPorCompeticion().length }} competiciones</span>
+  </h2>
+  @if (gruposPorCompeticion().length === 0) {
+    <p class="vacio">{{ 'no_matches_on_record_for_today_2' | transloco }}</p>
+  } @else {
+    <!-- Se pagina por competición, no por partido: la gracia de esta vista es ver una
+         jornada entera junta, y "los 5 primeros partidos" del día son siempre los de la
+         zona horaria más madrugadora. -->
+    @for (grupo of competicionesPaginadas(); track grupo.liga) {
+      <h3 class="competicion-header">
+        <img svImagen="liga" [src]="grupo.logo" alt="" class="competicion-logo">
+        @if (grupo.bandera) {
+          <img [src]="grupo.bandera" alt="" class="competicion-bandera" loading="lazy">
+        }
+        <span>{{ grupo.liga }}</span>
+        @if (grupo.pais) { <span class="competicion-pais">{{ grupo.pais }}</span> }
+        <span class="competicion-cuenta mono">{{ grupo.partidos.length }}</span>
+      </h3>
+      <div class="tabla-wrap">
+        <table>
+          <tbody>
+            <!-- Sin columna de competición: la tabla entera ya es de una sola. -->
+            @for (partido of grupo.partidos; track partido.idPartido) {
+              <tr svFilaPartido [partido]="partido"
+                  [routerLink]="['/partidos', partido.idPartido]"
+                  [queryParams]="{local: partido.idEquipoLocal, visitante: partido.idEquipoVisitante}"></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+      <sv-paginador [pagina]="paginaCompeticiones()" [totalPaginas]="totalPaginasCompeticiones()" (cambio)="cambiarPaginaCompeticiones($event)" />
+  }
+
+}

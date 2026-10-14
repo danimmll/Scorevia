@@ -1,0 +1,341 @@
+$cut: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+$cut-sm: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+
+.vacio { color: var(--sv-text-muted); font-size: var(--sv-text-md); }
+.sub { color: var(--sv-text-secondary); font-size: var(--sv-text-sm); }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+.hero {
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut; padding: var(--sv-space-6); margin-bottom: var(--sv-space-5); text-align: center;
+}
+.hero-liga { font-size: var(--sv-text-sm); color: var(--sv-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--sv-space-4); }
+
+.marcador { display: flex; align-items: center; justify-content: center; gap: var(--sv-space-6); }
+.equipo-lado { display: flex; flex-direction: column; align-items: center; gap: var(--sv-space-2); width: 140px; }
+.escudo { width: 56px; height: 56px; object-fit: contain; }
+.equipo-nombre { font-size: var(--sv-text-md); font-weight: 600; }
+
+.resultado-centro { display: flex; flex-direction: column; align-items: center; gap: var(--sv-space-2); }
+.marcador-numeros {
+  font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-4xl);
+  letter-spacing: 0.05em; color: var(--sv-text-display);
+}
+
+.estado-badge {
+  display: inline-flex; align-items: center; font-size: var(--sv-text-xs); font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; padding: 3px var(--sv-space-2);
+  color: var(--sv-text-secondary); border: 1px solid var(--sv-border);
+}
+.estado-badge--vivo { color: var(--sv-danger); border-color: var(--sv-danger); }
+.estado-badge--finalizado { color: var(--sv-text-muted); }
+
+.hero-meta { margin-top: var(--sv-space-4); font-size: var(--sv-text-sm); color: var(--sv-text-secondary); display: flex; align-items: center; justify-content: center; gap: var(--sv-space-3); }
+.hero-arbitro { display: inline-flex; align-items: center; gap: var(--sv-space-1); color: var(--sv-text-muted); }
+.hero-arbitro::before { content: '·'; margin-right: var(--sv-space-1); }
+.btn-favorito { background: none; border: none; cursor: pointer; font-size: 1.2rem; line-height: 1; color: var(--sv-amber-text); }
+.btn-favorito:disabled { cursor: default; opacity: 0.5; }
+
+.card {
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut-sm; padding: var(--sv-space-5) var(--sv-space-5); margin-bottom: var(--sv-space-5);
+}
+.card h2 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-lg); letter-spacing: 0.3px; margin: 0 0 var(--sv-space-4); }
+
+.btn-primario {
+  background: var(--sv-accent); color: var(--sv-accent-ink); border: none;
+  padding: var(--sv-space-2) var(--sv-space-4); font-weight: 600; cursor: pointer; font-family: inherit;
+}
+
+/* --- Predicción: barra apilada de 3 segmentos --- */
+.pred-barra { display: flex; height: 28px; overflow: hidden; margin-bottom: var(--sv-space-3); }
+.pred-seg {
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--sv-text-xs); font-weight: 700; color: var(--sv-bg); white-space: nowrap; overflow: hidden;
+}
+.pred-seg--local { background: var(--sv-accent); }
+.pred-seg--empate { background: var(--sv-text-muted); }
+.pred-seg--visitante { background: var(--sv-border-strong); color: var(--sv-text-primary); }
+
+.pred-leyenda, .stats-leyenda {
+  display: flex; gap: var(--sv-space-4); flex-wrap: wrap; font-size: var(--sv-text-sm); color: var(--sv-text-secondary); margin-bottom: var(--sv-space-4);
+}
+.pred-leyenda span, .stats-leyenda span { display: flex; align-items: center; gap: var(--sv-space-1); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot--local { background: var(--sv-accent); }
+.dot--empate { background: var(--sv-text-muted); }
+.dot--visitante { background: var(--sv-border-strong); }
+
+/* --- Posesión: donut CSS con conic-gradient --- */
+.posesion-wrap { display: flex; justify-content: center; margin-bottom: var(--sv-space-5); }
+.donut {
+  width: 140px; height: 140px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.donut-hueco {
+  width: 92px; height: 92px; border-radius: 50%; background: var(--sv-surface);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: var(--sv-text-lg); font-weight: 700; gap: 1px;
+}
+.donut-label { font-size: var(--sv-text-xs); color: var(--sv-text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; margin: 2px 0; }
+
+/* --- Filas comparativas (tiros, córners, faltas, tarjetas...) --- */
+.stat-fila { display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; gap: var(--sv-space-3); margin-bottom: var(--sv-space-3); }
+.stat-valor { font-size: var(--sv-text-sm); font-weight: 700; text-align: center; }
+.stat-barra { display: flex; height: 8px; background: var(--sv-surface-2); overflow: hidden; }
+.stat-barra-local { background: var(--sv-accent); }
+.stat-barra-visitante { background: var(--sv-border-strong); }
+.stat-label {
+  grid-column: 1 / -1; text-align: center; font-size: var(--sv-text-xs); color: var(--sv-text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-top: -4px;
+}
+
+/* --- Eventos: timeline de dos columnas (local izquierda, visitante derecha), por parte --- */
+.timeline-leyenda { display: flex; justify-content: space-between; font-size: var(--sv-text-xs); font-weight: 700; color: var(--sv-text-muted); margin-bottom: var(--sv-space-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.leyenda-equipo--local { color: var(--sv-accent-text); }
+.leyenda-equipo--visitante { color: var(--sv-text-secondary); }
+
+.periodo-header {
+  font-size: var(--sv-text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sv-text-muted); text-align: center; margin: var(--sv-space-5) 0 var(--sv-space-2); position: relative;
+}
+.periodo-header:first-of-type { margin-top: var(--sv-space-1); }
+
+.timeline-2col { list-style: none; margin: 0; padding: 0; position: relative; }
+.timeline-2col::before {
+  content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+  background: var(--sv-border); transform: translateX(-50%);
+}
+.timeline-2col-row {
+  display: grid; grid-template-columns: 1fr 60px 1fr; align-items: center;
+  gap: var(--sv-space-2); padding: var(--sv-space-2) 0; position: relative;
+}
+.lado { display: flex; align-items: center; gap: var(--sv-space-2); min-width: 0; }
+.lado--local { justify-content: flex-end; text-align: right; }
+.lado--visitante { justify-content: flex-start; text-align: left; }
+
+.minuto-centro {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 1;
+}
+.timeline-icono {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--sv-surface); border: 1px solid var(--sv-border);
+  display: flex; align-items: center; justify-content: center; font-size: var(--sv-text-xs);
+}
+.timeline-minuto { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+.timeline-desc { font-size: var(--sv-text-sm); line-height: 1.35; }
+.escudo-mini { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+
+/* --- H2H --- */
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.lista li { background: var(--sv-surface); border: 1px solid var(--sv-border); }
+.lista li.vacio { padding: var(--sv-space-3) var(--sv-space-4); }
+.partido-row { display: flex; align-items: center; gap: var(--sv-space-4); padding: var(--sv-space-3) var(--sv-space-4); cursor: pointer; transition: background-color 0.15s; }
+.partido-row:hover { background: var(--sv-surface-hover); }
+.partido-fecha { font-size: var(--sv-text-sm); color: var(--sv-text-muted); flex-shrink: 0; width: 90px; }
+.partido-encuentro { flex: 1; font-size: var(--sv-text-md); font-weight: 500; display: flex; align-items: center; gap: var(--sv-space-2); flex-wrap: wrap; }
+.resultado { font-weight: 700; color: var(--sv-text-primary); }
+
+
+/* ------------------------------------------------------------ Alineaciones ---- */
+
+/* El campo es una sola columna de filas: cada línea táctica es una fila y los
+   jugadores se reparten dentro. Así el 4-3-3 sale solo del número de jugadores por
+   línea, sin coordenadas ni posiciones absolutas que se rompan en móvil. */
+.campo {
+  display: flex; flex-direction: column; gap: var(--sv-space-3);
+  padding: var(--sv-space-4) var(--sv-space-3);
+  background:
+    linear-gradient(0deg, rgba(16, 185, 129, 0.05), rgba(16, 185, 129, 0.05)),
+    var(--sv-bg);
+  border: 1px solid var(--sv-border);
+}
+
+.campo-equipo { display: flex; justify-content: center; }
+.campo-equipo--abajo { margin-top: var(--sv-space-1); }
+.campo-equipo-nombre {
+  display: inline-flex; align-items: center; gap: var(--sv-space-2);
+  font-size: var(--sv-text-sm); font-weight: 600; color: var(--sv-text-secondary);
+}
+.formacion {
+  font-size: var(--sv-text-xs); letter-spacing: 0.06em; color: var(--sv-text-muted);
+  border: 1px solid var(--sv-border); padding: 1px var(--sv-space-2);
+}
+
+.campo-linea { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--sv-space-2) var(--sv-space-4); }
+
+/* Línea de medio campo, para que se vea de un vistazo dónde acaba un equipo y
+   empieza el otro (los dos onces van enfrentados, no en la misma dirección). */
+.campo-medio {
+  position: relative; height: 1px; margin: var(--sv-space-3) 0;
+  background: var(--sv-border-strong);
+}
+.campo-circulo {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 42px; height: 42px; border: 1px solid var(--sv-border-strong); border-radius: 50%;
+}
+
+.jugador { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 74px; }
+.jugador-foto-wrap { position: relative; display: block; text-decoration: none; }
+.jugador-foto {
+  width: 42px; height: 42px; border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--sv-border); background: var(--sv-surface); display: block;
+}
+.jugador-foto-wrap:hover .jugador-foto { border-color: var(--sv-accent); }
+.jugador-dorsal {
+  position: absolute; right: -4px; bottom: -2px;
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  font-size: var(--sv-text-xs); line-height: 1; padding: 2px var(--sv-space-1); color: var(--sv-text-secondary);
+}
+.jugador-nombre {
+  font-size: var(--sv-text-xs); text-align: center; line-height: 1.25; color: var(--sv-text-primary);
+  /* Dos líneas como mucho: con nombres largos, si no, cada ficha mide distinto y la
+     línea táctica deja de leerse como una fila. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.jugador-marcas { font-size: var(--sv-text-xs); letter-spacing: 1px; line-height: 1; min-height: 10px; }
+
+/* Entrenadores y árbitro */
+.staff { display: flex; flex-wrap: wrap; gap: var(--sv-space-3); margin-top: var(--sv-space-4); }
+.staff-ficha {
+  display: flex; align-items: center; gap: var(--sv-space-3); flex: 1 1 220px;
+  border: 1px solid var(--sv-border); padding: var(--sv-space-2) var(--sv-space-3);
+}
+.staff-enlace { display: flex; align-items: center; gap: var(--sv-space-2); text-decoration: none; color: inherit; flex: 1; min-width: 0; }
+.staff-enlace:hover .staff-nombre { color: var(--sv-accent); }
+.staff-foto {
+  width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+  border: 1px solid var(--sv-border); background: var(--sv-surface); flex-shrink: 0;
+}
+.staff-silbato {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--sv-border); border-radius: 50%; color: var(--sv-text-muted); flex-shrink: 0;
+}
+.staff-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.staff-rol { font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--sv-text-muted); }
+.staff-nombre { font-size: var(--sv-text-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.staff-aviso { font-size: var(--sv-text-xs); color: var(--sv-amber-text); }
+
+/* Banquillos */
+.banquillos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sv-space-5); margin-top: var(--sv-space-5); }
+.banquillo-titulo {
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sv-text-muted); margin: 0 0 var(--sv-space-2); font-weight: 600;
+}
+.banquillo-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+.banquillo-fila {
+  display: flex; align-items: center; gap: var(--sv-space-2); padding: var(--sv-space-1) 0;
+  border-bottom: 1px solid var(--sv-border);
+}
+.banquillo-fila:last-child { border-bottom: none; }
+.banquillo-enlace { display: flex; align-items: center; gap: var(--sv-space-2); text-decoration: none; color: inherit; flex: 1; min-width: 0; }
+.banquillo-enlace:hover .banquillo-nombre { color: var(--sv-accent); }
+.suplente-foto { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--sv-border); flex-shrink: 0; }
+.banquillo-dorsal { font-size: var(--sv-text-xs); color: var(--sv-text-muted); width: 20px; text-align: right; }
+.banquillo-nombre { font-size: var(--sv-text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banquillo-min { font-size: var(--sv-text-xs); color: var(--sv-text-secondary); }
+.banquillo-min--sinjugar { color: var(--sv-text-muted); }
+
+.btn-secundario {
+  background: none; border: 1px solid var(--sv-border-strong); color: var(--sv-text-secondary);
+  padding: var(--sv-space-2) var(--sv-space-4); font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.btn-secundario:hover { color: var(--sv-text-primary); }
+
+/* --------------------------------------------------------------- Cuotas y bajas ---- */
+
+.marcador-penaltis { font-size: var(--sv-text-sm); color: var(--sv-text-secondary); }
+.marcador-descanso { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+
+.cuotas { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--sv-space-3); }
+.cuota-mercado { border: 1px solid var(--sv-border); padding: var(--sv-space-3) var(--sv-space-3); }
+.cuota-titulo {
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--sv-text-muted); margin-bottom: var(--sv-space-2);
+}
+.cuota-opciones { display: flex; gap: var(--sv-space-2); }
+.cuota-opcion {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--sv-bg); border: 1px solid var(--sv-border); padding: var(--sv-space-2) var(--sv-space-1);
+}
+.cuota-etiqueta { font-size: var(--sv-text-xs); color: var(--sv-text-secondary); text-align: center; }
+.cuota-valor { font-size: var(--sv-text-md); font-weight: 700; color: var(--sv-accent-text); }
+.cuotas-pie { margin-top: var(--sv-space-3); }
+
+.bajas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sv-space-5); }
+.baja-motivo { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+.baja-tipo {
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.04em;
+  border: 1px solid var(--sv-danger); color: var(--sv-danger); padding: 1px var(--sv-space-2);
+}
+/* Una duda no es una baja: quien mira la previa necesita ver la diferencia de un vistazo. */
+.baja-tipo--duda { border-color: var(--sv-amber-text); color: var(--sv-amber-text); }
+
+/* Partidos antiguos: hay once pero no posiciones, así que en vez de amontonar once fichas
+   en una fila fingiendo un campo, se reparten en rejilla y se avisa de por qué. */
+.campo-linea--lista {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+  justify-items: center; gap: var(--sv-space-3) var(--sv-space-2);
+}
+.campo-aviso { font-size: var(--sv-text-xs); color: var(--sv-text-muted); text-align: center; margin: 2px 0 var(--sv-space-2); }
+
+/* El motivo de un hueco, en pequeño y debajo. Un apartado vacío sin explicación se lee
+   como un fallo nuestro; con el motivo, se entiende que el dato no existe. Solo se pinta
+   cuando la API dice EXPLÍCITAMENTE que no cubre eso (null es "no se sabe"). */
+.nota-cobertura {
+  font-size: var(--sv-text-xs);
+  color: var(--sv-text-muted);
+  text-align: center;
+  margin: var(--sv-space-1) 0 0;
+}
+
+/* ============================================================================
+   MÓVIL
+
+   Esta pantalla se escribió con anchos fijos (los dos `.equipo-lado` de 140px,
+   la columna de 60px del timeline, los 90px de la fecha en el H2H) y sin una
+   sola media query en 306 líneas. La cuenta del marcador sale sola:
+   140 + 140 + 28 de hueco × 2 = 364px de contenido dentro de una tarjeta que
+   además tiene 28px de padding a cada lado. En un móvil de 360px eso no cabe:
+   se sale por el lado o aplasta el resultado contra los escudos.
+
+   Los saltos van a 640px, que es el corte que ya usa el resto del proyecto.
+   ============================================================================ */
+@media (max-width: 640px) {
+  .hero { padding: var(--sv-space-4) var(--sv-space-3); }
+
+  /* Los lados dejan de tener ancho fijo y se reparten lo que hay; el hueco
+     baja de 28 a 12 para que el resultado siga siendo lo primero que se lee. */
+  .marcador { gap: var(--sv-space-3); }
+  .equipo-lado { width: auto; flex: 1; min-width: 0; }
+  .equipo-nombre {
+    font-size: var(--sv-text-sm);
+    /* Sin esto, "Borussia Mönchengladbach" empuja el marcador fuera de la caja. */
+    overflow-wrap: anywhere;
+  }
+  .escudo { width: 40px; height: 40px; }
+  .marcador-numeros { font-size: var(--sv-text-3xl); }
+
+  /* El árbitro y la fecha se apilan en vez de pelearse por una línea. */
+  .hero-meta { flex-direction: column; gap: var(--sv-space-1); }
+  .hero-arbitro::before { content: none; margin-right: 0; }
+
+  /* El timeline pierde la columna central fija: con 60px en el centro, cada
+     lado se queda en unos 130px y una descripción de gol se parte en cinco
+     líneas. */
+  .timeline-2col-row { grid-template-columns: 1fr 44px 1fr; gap: var(--sv-space-1); }
+  .timeline-desc { font-size: var(--sv-text-xs); }
+
+  /* En el H2H la fecha ocupaba 90px fijos de los ~330 disponibles. */
+  .partido-row { gap: var(--sv-space-2); padding: var(--sv-space-3); }
+  .partido-fecha { width: auto; font-size: var(--sv-text-xs); }
+  .partido-encuentro { font-size: var(--sv-text-sm); }
+
+  /* Las rejillas de auto-fit pedían columnas de 260px, más anchas que la
+     pantalla, así que el minmax no llegaba a aplicarse nunca. */
+  .banquillos, .bajas { grid-template-columns: 1fr; gap: var(--sv-space-4); }
+  .cuotas { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+
+  /* El donut de posesión ocupaba 140px de alto para enseñar un número. */
+  .donut { width: 108px; height: 108px; }
+  .donut-hueco { width: 72px; height: 72px; }
+}

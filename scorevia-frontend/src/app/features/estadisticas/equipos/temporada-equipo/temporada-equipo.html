@@ -1,0 +1,175 @@
+@if (cargando()) {
+  <sv-cargando [filas]="8" texto="Cargando la temporada..." />
+} @else if (error()) {
+  <p class="error-message">{{ error() }}</p>
+} @else if (detalle(); as d) {
+
+  <div class="cabecera">
+    <a [routerLink]="['/estadisticas/equipos', d.idEquipo]" class="volver">{{ 'back_to_the_team' | transloco }}</a>
+
+    <div class="titulo">
+      <img svImagen="equipo" [src]="d.escudo" [alt]="d.equipo ?? ''" class="escudo-grande">
+      <div>
+        <h1>{{ d.equipo }}</h1>
+        <p class="subtitulo">Temporada {{ d.temporada }}</p>
+      </div>
+    </div>
+
+    @if (temporadasDisponibles().length > 0) {
+      <select class="select-temporada" [attr.aria-label]="'change_season' | transloco"
+              (change)="cambiarTemporada(+$any($event.target).value)">
+        @for (t of temporadasDisponibles(); track t) {
+          <option [value]="t" [selected]="t === temporada()">Temporada {{ t }}</option>
+        }
+      </select>
+    }
+  </div>
+
+  <!-- Los títulos primero: es lo que define cómo se recuerda una temporada. -->
+  @if (d.titulos && d.titulos.length > 0) {
+    <div class="titulos">
+      @for (t of d.titulos; track t.idLiga) {
+        <a class="titulo-chip" [routerLink]="['/estadisticas/clasificacion']" [queryParams]="{ liga: t.idLiga }">
+          <span class="copa" aria-hidden="true">🏆</span>
+          @if (t.logo) { <img svImagen="liga" [src]="t.logo" alt="" class="titulo-logo"> }
+          <span>{{ t.nombre }}</span>
+        </a>
+      }
+    </div>
+  }
+
+  <div class="rejilla-resumen">
+    <!-- Entrenadores: pueden ser varios, en una temporada con destitución. -->
+    <section class="tarjeta">
+      <h2>{{ 'coach' | transloco }}</h2>
+      @if (d.entrenadores && d.entrenadores.length > 0) {
+        <ul class="lista-limpia">
+          @for (e of d.entrenadores; track e.idEntrenador) {
+            <li>
+              <a class="fila-persona" [routerLink]="['/estadisticas/entrenadores', e.idEntrenador]">
+                <img svImagen="entrenador" [src]="e.foto" alt="" class="foto-mini">
+                <span>{{ e.nombre }}</span>
+              </a>
+              <!-- Honesto con la procedencia del dato: si el registro es de otro año, se dice,
+                   en vez de dar a entender que consta esta temporada exacta. -->
+              @if (e.temporadaRegistro && e.temporadaRegistro !== temporada()) {
+                <span class="desde">desde {{ e.temporadaRegistro }}</span>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="vacio">{{ 'there_is_no_record_of_who_managed_the_team_t' | transloco }}</p>
+      }
+    </section>
+
+    <section class="tarjeta">
+      <h2>{{ 'competitions' | transloco }}</h2>
+      @if (d.competiciones && d.competiciones.length > 0) {
+        <ul class="lista-limpia">
+          @for (c of d.competiciones; track c.idLiga) {
+            <li class="fila-competicion">
+              @if (c.logo) { <img svImagen="liga" [src]="c.logo" alt="" class="mini-logo"> }
+              @if (c.bandera) { <img [src]="c.bandera" alt="" class="mini-bandera" loading="lazy"> }
+              <a class="nombre-competicion" [routerLink]="['/estadisticas/clasificacion']"
+                 [queryParams]="{ liga: c.idLiga }">{{ c.nombre }}</a>
+              @if (c.grupo) { <span class="grupo">{{ c.grupo }}</span> }
+              @if (c.posicion) {
+                <span class="posicion mono" [class.posicion--campeon]="c.posicion === 1">{{ c.posicion }}º</span>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="vacio">{{ 'no_standings_on_record_for_that_season' | transloco }}</p>
+      }
+    </section>
+
+    <section class="tarjeta">
+      <h2>{{ 'totals' | transloco }}</h2>
+      @if (d.totales; as t) {
+        <div class="totales">
+          <div class="total"><span class="cifra mono">{{ t.jugadoresUtilizados }}</span><span class="etiqueta">{{ 'players' | transloco }}</span></div>
+          <div class="total"><span class="cifra mono">{{ t.goles }}</span><span class="etiqueta">{{ 'goals' | transloco }}</span></div>
+          <div class="total"><span class="cifra mono">{{ t.asistencias }}</span><span class="etiqueta">{{ 'assists' | transloco }}</span></div>
+          <div class="total"><span class="cifra mono">{{ t.amarillas }}</span><span class="etiqueta">{{ 'yellow_cards' | transloco }}</span></div>
+          <div class="total"><span class="cifra mono">{{ t.rojas }}</span><span class="etiqueta">{{ 'red_cards' | transloco }}</span></div>
+        </div>
+      }
+    </section>
+  </div>
+
+  <!-- ================================================================ Plantilla ==== -->
+  <section>
+    <h2>{{ 'squad' | transloco }}</h2>
+    @if (plantillaOrdenada().length === 0) {
+      <p class="vacio">
+        {{ 'no_player_statistics_for_that_season_this_us' | transloco }}
+      </p>
+    } @else {
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ 'player' | transloco }}</th>
+              <th>{{ 'pos' | transloco }}</th>
+              <!-- Cabeceras pinchables: comparar la plantilla por goles o por minutos es
+                   justo lo que se viene a hacer aquí. -->
+              <th class="num orden" [class.activa]="orden() === 'partidos'"
+                  [attr.aria-sort]="orden() === 'partidos' ? 'descending' : 'none'">
+                <button type="button" class="orden-btn" (click)="ordenarPor('partidos')"
+                        [attr.aria-label]="'sort_by_matches_played' | transloco">{{ 'mp' | transloco }}</button>
+              </th>
+              <th class="num orden" [class.activa]="orden() === 'minutos'"
+                  [attr.aria-sort]="orden() === 'minutos' ? 'descending' : 'none'">
+                <button type="button" class="orden-btn" (click)="ordenarPor('minutos')"
+                        [attr.aria-label]="'sort_by_minutes' | transloco">Min</button>
+              </th>
+              <th class="num orden" [class.activa]="orden() === 'goles'"
+                  [attr.aria-sort]="orden() === 'goles' ? 'descending' : 'none'">
+                <button type="button" class="orden-btn" (click)="ordenarPor('goles')"
+                        [attr.aria-label]="'sort_by_goals' | transloco">G</button>
+              </th>
+              <th class="num orden" [class.activa]="orden() === 'asistencias'"
+                  [attr.aria-sort]="orden() === 'asistencias' ? 'descending' : 'none'">
+                <button type="button" class="orden-btn" (click)="ordenarPor('asistencias')"
+                        [attr.aria-label]="'sort_by_assists' | transloco">A</button>
+              </th>
+              <th class="num">🟨</th>
+              <th class="num">🟥</th>
+              <th class="num orden" [class.activa]="orden() === 'valoracionMedia'"
+                  [attr.aria-sort]="orden() === 'valoracionMedia' ? 'descending' : 'none'">
+                <button type="button" class="orden-btn" (click)="ordenarPor('valoracionMedia')"
+                        [attr.aria-label]="'sort_by_average_rating' | transloco">{{ 'rat' | transloco }}</button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (j of plantillaPaginada.visibles(); track j.idJugador) {
+              <tr>
+                <td>
+                  <a class="fila-persona" [routerLink]="['/estadisticas/jugadores', j.idJugador]">
+                    <img svImagen="jugador" [src]="j.foto" alt="" class="foto-mini">
+                    <span>{{ j.nombre }}</span>
+                  </a>
+                </td>
+                <td class="posicion-natural">{{ j.posicion }}</td>
+                <td class="mono num">{{ j.partidos }}</td>
+                <td class="mono num">{{ j.minutos }}</td>
+                <td class="mono num destacado">{{ j.goles ?? 0 }}</td>
+                <td class="mono num destacado">{{ j.asistencias ?? 0 }}</td>
+                <td class="mono num">{{ j.amarillas ?? 0 }}</td>
+                <td class="mono num">{{ j.rojas ?? 0 }}</td>
+                <!-- Guion y no 0: un 0 se leería como "jugó fatal" cuando lo que pasa es que
+                     esa competición no publica valoraciones. -->
+                <td class="mono num">{{ j.valoracionMedia ?? '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <sv-paginador [pagina]="plantillaPaginada.pagina()" [totalPaginas]="plantillaPaginada.totalPaginas()"
+                    etiqueta="jugadores" (cambio)="plantillaPaginada.pagina.set($event)" />
+    }
+  </section>
+}

@@ -1,0 +1,68 @@
+<div class="cabecera-seccion">
+  <h1>{{ 'teams' | transloco }}</h1>
+  <!-- Entrenadores salió de la barra superior y vive aquí, que es desde donde se busca
+       de verdad: se llega al banquillo pensando en el club, no al revés. -->
+  <a routerLink="/estadisticas/entrenadores" class="enlace-seccion">{{ 'see_coaches' | transloco }}</a>
+</div>
+
+@if (error()) {
+  <p class="error-message">{{ error() }}</p>
+}
+
+<div class="filtros">
+  <!-- Ver el comentario del mismo control en partidos-listado. -->
+  <app-selector-pais [paises]="paises()" [seleccionado]="paisSeleccionado()"
+                     (cambio)="seleccionarPais($event)" />
+
+  <select [attr.aria-label]="'filter_by_league' | transloco" (change)="seleccionarLiga(+$any($event.target).value)">
+    @for (grupo of gruposLigasDelPais(); track grupo.categoria) {
+      @if (gruposLigasDelPais().length > 1) {
+        <optgroup [label]="grupo.categoria">
+          @for (liga of grupo.ligas; track liga.idLiga) {
+            <option [value]="liga.idLiga" [selected]="liga.idLiga === ligaSeleccionada()">{{ liga.nombre }}</option>
+          }
+        </optgroup>
+      } @else {
+        @for (liga of grupo.ligas; track liga.idLiga) {
+          <option [value]="liga.idLiga" [selected]="liga.idLiga === ligaSeleccionada()">{{ liga.nombre }}</option>
+        }
+      }
+    }
+  </select>
+
+  @if (temporadasDisponibles().length > 0) {
+    <select [attr.aria-label]="'season' | transloco" (change)="seleccionarTemporada(+$any($event.target).value)">
+      @for (t of temporadasDisponibles(); track t.temporada) {
+        <option [value]="t.temporada" [selected]="t.temporada === temporada()">
+          {{ t.temporada }}/{{ (t.temporada + 1) % 100 | number: '2.0-0' }}{{ t.conDatos ? '' : ' (sin jugar)' }}
+        </option>
+      }
+    </select>
+  }
+
+  <input type="text" [placeholder]="'search_team_by_name_2' | transloco" (input)="buscarPorNombre($any($event.target).value)" [attr.aria-label]="'search_team_by_name' | transloco">
+</div>
+
+<div class="equipos-grid">
+  @for (equipo of paginados.visibles(); track equipo.idEquipo) {
+    <a [routerLink]="['/estadisticas/equipos', equipo.idEquipo]" class="equipo-card">
+      @if (authService.currentUser()) {
+        <button type="button" class="btn-favorito" (click)="toggleFavorito(equipo.idEquipo, $event)"
+                [title]="(esFavorito(equipo.idEquipo) ? 'remove_from_favourites' : 'add_to_favourites') | transloco">
+          {{ esFavorito(equipo.idEquipo) ? '★' : '☆' }}
+        </button>
+      }
+      <img svImagen="equipo" [src]="equipo.logo" [alt]="equipo.nombre" class="escudo">
+      <div class="equipo-nombre">{{ equipo.nombre }}</div>
+      <div class="equipo-meta">{{ equipo.pais }} @if (equipo.fundacion) { · {{ equipo.fundacion }} }</div>
+      @if (equipo.estadio?.nombre) {
+        <div class="equipo-estadio">{{ equipo.estadio?.nombre }}</div>
+      }
+    </a>
+  } @empty {
+    <p class="vacio">{{ 'no_teams_for_this_league' | transloco }}</p>
+  }
+</div>
+
+<sv-paginador [pagina]="paginados.pagina()" [totalPaginas]="paginados.totalPaginas()"
+              etiqueta="equipos" (cambio)="paginados.pagina.set($event)" />

@@ -1,0 +1,50 @@
+<h1>{{ 'my_profile' | transloco }}</h1>
+
+@if (cargando()) {
+  <sv-cargando />
+} @else {
+  @if (error()) {
+    <p class="error-message">{{ error() }}</p>
+  }
+  @if (mensajeGuardado()) {
+    <p class="ok-message">{{ mensajeGuardado() }}</p>
+  }
+
+  <section class="card">
+    <div class="card-header"><h2>{{ 'account_details' | transloco }}</h2></div>
+    <form [formGroup]="perfilForm" (ngSubmit)="guardar()">
+      <div class="form-group">
+        <label for="nickname">Nickname</label>
+        <input type="text" id="nickname" formControlName="nickname">
+      </div>
+      <div class="form-group">
+        <label for="nombreUsuario">{{ 'name' | transloco }}</label>
+        <input type="text" id="nombreUsuario" formControlName="nombreUsuario">
+      </div>
+      <div class="form-group">
+        <label for="apellidoUsuario">{{ 'surname' | transloco }}</label>
+        <input type="text" id="apellidoUsuario" formControlName="apellidoUsuario">
+      </div>
+      <div class="form-group">
+        <label for="correoUsuario">{{ 'email' | transloco }}</label>
+        <input type="email" id="correoUsuario" formControlName="correoUsuario">
+      </div>
+      <div class="form-group">
+        <label for="urlFoto">{{ 'photo_url' | transloco }}</label>
+        <input type="text" id="urlFoto" formControlName="urlFoto">
+      </div>
+      <div class="form-group">
+        <label for="nuevaContrasenha">{{ 'new_password_leave_empty_to_keep_the_current' | transloco }}</label>
+        <input type="password" id="nuevaContrasenha" formControlName="nuevaContrasenha">
+      </div>
+
+      <button type="submit" [disabled]="perfilForm.invalid">{{ 'save' | transloco }}</button>
+    </form>
+
+    @if (authService.esAdmin()) {
+      <button (click)="exportarExcel()">{{ 'export_users_to_excel' | transloco }}</button>
+    }
+
+    <button class="btn-danger" (click)="darDeBaja()">{{ 'deactivate_my_account' | transloco }}</button>
+  </section>
+}

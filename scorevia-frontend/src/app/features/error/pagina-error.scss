@@ -1,0 +1,211 @@
+/* La página de error.
+
+   Centrada y con aire de sobra a propósito: es la única pantalla del sitio donde no hay nada
+   que leer aparte del mensaje, así que compite consigo misma y no con una tabla al lado. */
+.error-pagina {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-8) var(--sv-space-4);
+  max-width: 560px;
+  margin-inline: auto;
+}
+
+/* ---------------------------------------------------------------- la escena animada ---- */
+.error-escena {
+  width: min(280px, 70vw);
+  color: var(--sv-text-secondary);
+  margin-bottom: var(--sv-space-2);
+}
+
+.error-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+/* El balón sale de la izquierda, rebota en el larguero y se va por arriba a la derecha: la
+   trayectoria cuenta lo mismo que el texto, que la cosa no ha entrado. */
+.error-balon {
+  animation: fallo-tiro 2.6s var(--sv-ease) infinite;
+  transform-origin: center;
+}
+
+@keyframes fallo-tiro {
+  0%   { transform: translate(20px, 105px) rotate(0deg); }
+  /* Subida y golpe en el larguero, justo en el centro de la portería. */
+  32%  { transform: translate(120px, 46px) rotate(220deg); }
+  /* Rebote seco hacia arriba. */
+  42%  { transform: translate(140px, 34px) rotate(300deg); }
+  /* Y fuera por la derecha. */
+  70%  { transform: translate(232px, 96px) rotate(560deg); }
+  71%  { transform: translate(232px, 96px) rotate(560deg); opacity: 0; }
+  99%  { transform: translate(20px, 105px) rotate(0deg); opacity: 0; }
+  100% { transform: translate(20px, 105px) rotate(0deg); opacity: 1; }
+}
+
+/* La portería tiembla en el momento del golpe. */
+.porteria {
+  animation: temblor-larguero 2.6s var(--sv-ease) infinite;
+  transform-origin: 120px 80px;
+}
+
+@keyframes temblor-larguero {
+  0%, 30%  { transform: translateX(0); }
+  33%      { transform: translateX(2.5px); }
+  36%      { transform: translateX(-2px); }
+  39%      { transform: translateX(1px); }
+  42%, 100% { transform: translateX(0); }
+}
+
+/* Quien haya pedido que no se mueva nada, ve la escena quieta con el balón ya fuera: sigue
+   contando lo mismo sin un solo fotograma de movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  .error-balon,
+  .porteria {
+    animation: none;
+  }
+  .error-balon {
+    transform: translate(210px, 70px);
+  }
+}
+
+/* ---------------------------------------------------------------- el texto ---- */
+.error-codigo {
+  font-size: var(--sv-text-4xl);
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+  color: var(--sv-danger);
+  letter-spacing: 0.06em;
+}
+
+.error-pagina h1 {
+  font-family: 'Anton', 'Archivo', sans-serif;
+  font-size: var(--sv-text-2xl);
+  letter-spacing: 0.3px;
+  margin: 0;
+}
+
+.error-mensaje {
+  margin: 0;
+  color: var(--sv-text-secondary);
+  font-size: var(--sv-text-lg);
+  max-width: 44ch;
+}
+
+/* La dirección que se pidió. En una sola línea y recortada: una URL larga rompería el
+   centrado de todo lo demás. */
+.error-ruta {
+  margin: var(--sv-space-2) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sv-space-2);
+  font-size: var(--sv-text-sm);
+  color: var(--sv-text-muted);
+  max-width: 100%;
+}
+
+.error-ruta code {
+  padding: var(--sv-space-1) var(--sv-space-2);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-surface);
+  color: var(--sv-text-primary);
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.error-detalle {
+  margin-top: var(--sv-space-3);
+  width: 100%;
+  text-align: left;
+  font-size: var(--sv-text-sm);
+
+  summary {
+    cursor: pointer;
+    color: var(--sv-text-muted);
+    padding: var(--sv-space-2) 0;
+  }
+
+  pre {
+    margin: 0;
+    padding: var(--sv-space-3);
+    border: 1px solid var(--sv-border);
+    border-radius: var(--sv-radius-sm);
+    background: var(--sv-surface);
+    color: var(--sv-text-secondary);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+/* ---------------------------------------------------------------- acciones ---- */
+.error-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-3);
+  justify-content: center;
+  margin-top: var(--sv-space-5);
+}
+
+.error-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sv-space-3) var(--sv-space-5);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-surface);
+  color: var(--sv-text-primary);
+  font-family: inherit;
+  font-size: var(--sv-text-md);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--sv-dur-1) var(--sv-ease),
+              border-color var(--sv-dur-1) var(--sv-ease),
+              transform var(--sv-dur-1) var(--sv-ease);
+
+  &:hover {
+    background: var(--sv-surface-hover);
+    border-color: var(--sv-accent-text);
+    transform: translateY(-1px);
+  }
+  &:active { transform: translateY(0) scale(0.98); }
+}
+
+.error-btn--primario {
+  background: var(--sv-accent);
+  color: var(--sv-accent-ink);
+  border-color: transparent;
+
+  &:hover { background: var(--sv-accent); border-color: transparent; }
+}
+
+.error-cuenta {
+  margin: var(--sv-space-4) 0 0;
+  font-size: var(--sv-text-sm);
+  color: var(--sv-text-muted);
+}
+
+.error-cancelar {
+  background: none;
+  border: none;
+  padding: 0 0 0 var(--sv-space-1);
+  color: var(--sv-accent-text);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error-btn { transition: none; }
+  .error-btn:hover { transform: none; }
+}

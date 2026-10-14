@@ -1,0 +1,339 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.shell { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* --- TOP NAV: todos los tabs viven aquí, no en la barra lateral --- */
+.topnav {
+  display: flex; align-items: center; gap: var(--sv-space-5);
+  // Nada dentro de la barra debe recortarse: los desplegables se salen de ella por diseño.
+  overflow: visible;
+  background: var(--sv-surface); border-bottom: 1px solid var(--sv-border);
+  padding: var(--sv-space-3) var(--sv-space-4);
+  position: sticky; top: 0; z-index: 20;
+  @media (min-width: 768px) { padding: var(--sv-space-3) var(--sv-space-6); }
+}
+
+.brand { display: flex; align-items: center; gap: var(--sv-space-2); text-decoration: none; flex-shrink: 0; }
+.brand svg { flex-shrink: 0; }
+.brand span { font-family: 'Anton', sans-serif; font-weight: 700; font-size: var(--sv-text-lg); letter-spacing: -0.01em; color: var(--sv-text-display); display: none; }
+@media (min-width: 640px) { .brand span { display: inline; } }
+
+/* --- Buscador único (equipo/jugador/liga a la vez) --- */
+.buscador-global { position: relative; flex-shrink: 0; width: 160px; }
+@media (min-width: 900px) { .buscador-global { width: 240px; } }
+.buscador-global input {
+  width: 100%; box-sizing: border-box;
+  background: var(--sv-surface-2); border: 1px solid var(--sv-border); color: var(--sv-text-primary);
+  padding: var(--sv-space-2) var(--sv-space-3); font-size: var(--sv-text-sm); font-family: inherit; border-radius: var(--sv-radius-sm);
+}
+.buscador-global input:focus { outline: none; border-color: var(--sv-accent); }
+.buscador-resultados {
+  position: absolute; top: calc(100% + 6px); left: 0; width: max(100%, 280px); z-index: 30;
+  background: var(--sv-surface); border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-2); max-height: 400px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.buscador-cargando, .buscador-vacio { padding: var(--sv-space-3) var(--sv-space-2); font-size: var(--sv-text-sm); color: var(--sv-text-muted); }
+.buscador-grupo-titulo {
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--sv-text-muted);
+  padding: var(--sv-space-2) var(--sv-space-2) var(--sv-space-1);
+}
+// Los resultados eran <div> con (click): con el raton funcionaban y con el teclado no
+// existian. Al pasarlos a <button> hay que devolverles el aspecto (el navegador les pone su
+// fondo, su borde, su fuente y el texto centrado) y aprovechar lo que ganan: foco y Enter.
+.buscador-item {
+  display: flex; align-items: center; gap: var(--sv-space-2);
+  width: 100%; padding: var(--sv-space-2) var(--sv-space-2);
+  cursor: pointer; border-radius: var(--sv-radius-sm);
+  font-size: var(--sv-text-sm); color: var(--sv-text-primary);
+  background: none; border: 0; font-family: inherit; text-align: left;
+}
+.buscador-item:hover { background: var(--sv-surface-hover); }
+.buscador-item:focus-visible {
+  outline: 2px solid var(--sv-accent-text);
+  outline-offset: -2px;
+  background: var(--sv-surface-hover);
+}
+.buscador-item span:first-of-type { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.buscador-sub { font-size: var(--sv-text-xs); color: var(--sv-text-muted); flex-shrink: 0; }
+.buscador-icono { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+.buscador-icono--redonda { border-radius: 50%; object-fit: cover; }
+
+.topnav-links {
+  display: flex; align-items: center; gap: var(--sv-space-2); flex: 1; min-width: 0;
+  // Envuelve en vez de hacer scroll horizontal. Tenía `overflow-x: auto`, puesto cuando
+  // había 14 enlaces sueltos, y eso rompía los desplegables: en cuanto un eje deja de ser
+  // `visible`, el otro deja de serlo también, así que el menú de Comunidad y el de Admin se
+  // abrían pero quedaban recortados a la altura de la barra -- invisibles. Con la barra
+  // plana (4 secciones + Jugar + 2 desplegables) ya no hace falta scroll.
+  flex-wrap: wrap; row-gap: var(--sv-space-1);
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: var(--sv-space-1); white-space: nowrap; flex-shrink: 0;
+  padding: var(--sv-space-2) var(--sv-space-3); border-radius: var(--sv-radius-sm);
+  color: var(--sv-text-secondary); font-size: var(--sv-text-md); font-weight: 500;
+  text-decoration: none; cursor: pointer; transition: all 0.15s;
+  background: none; border: none; font-family: inherit;
+}
+.nav-item:hover { background: var(--sv-surface-hover); color: var(--sv-text-primary); }
+.nav-item.active { background: var(--sv-surface-2); color: var(--sv-accent-text); }
+
+.topnav-dropdown { position: relative; flex-shrink: 0; }
+.topnav-dropdown-menu {
+  // z-index explícito: el menú se sale de la barra y tiene que pintarse por encima del
+  // contenido de la página, que crea sus propios contextos de apilamiento (cabeceras
+  // sticky de las tablas, tarjetas con sombra...).
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; min-width: 180px; z-index: 30;
+  background: var(--sv-surface); border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-2); flex-direction: column; gap: 1px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.topnav-dropdown.abierto .topnav-dropdown-menu { display: flex; }
+.topnav-dropdown-menu a {
+  padding: var(--sv-space-2) var(--sv-space-3); border-radius: var(--sv-radius-sm); font-size: var(--sv-text-sm); text-decoration: none;
+  color: var(--sv-text-secondary); white-space: nowrap;
+}
+.topnav-dropdown-menu a:hover { background: var(--sv-surface-hover); color: var(--sv-text-primary); }
+.topnav-dropdown-menu a.active { color: var(--sv-accent-text); }
+
+.topnav-right { display: flex; align-items: center; gap: var(--sv-space-3); flex-shrink: 0; }
+
+.theme-toggle {
+  display: flex; align-items: center; gap: var(--sv-space-2);
+  background: var(--sv-surface-2); border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-xl); padding: 3px; flex-shrink: 0;
+}
+.theme-toggle button {
+  width: 26px; height: 26px; border-radius: 50%; border: none;
+  background: transparent; color: var(--sv-text-muted);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;
+}
+.theme-toggle button.on { background: var(--sv-surface); color: var(--sv-accent); border: 1px solid var(--sv-border-strong); }
+
+/* Idioma: misma capsula que el tema para que se lean como un par, pero con texto
+   ("EN"/"ES") en vez de icono -- una bandera no vale, el ingles no es de un solo pais. */
+.lang-toggle {
+  display: flex; align-items: center; gap: 2px;
+  background: var(--sv-surface-2); border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-xl); padding: 3px; flex-shrink: 0;
+}
+.lang-toggle button {
+  min-width: 30px; height: 26px; border-radius: var(--sv-radius-pill); border: none;
+  background: transparent; color: var(--sv-text-muted);
+  font-family: inherit; font-size: var(--sv-text-xs); font-weight: 700; letter-spacing: 0.04em;
+  cursor: pointer; transition: all var(--sv-dur-1) var(--sv-ease);
+}
+.lang-toggle button:hover { color: var(--sv-text-secondary); }
+.lang-toggle button.on {
+  background: var(--sv-surface); color: var(--sv-accent);
+  border: 1px solid var(--sv-border-strong);
+}
+.lang-toggle button:focus-visible { outline: 2px solid var(--sv-accent); outline-offset: 1px; }
+
+.profile-menu { display: flex; align-items: center; gap: var(--sv-space-2); }
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--sv-surface-2);
+  border: 1px solid var(--sv-border-strong);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--sv-text-xs); font-weight: 600; color: var(--sv-accent); flex-shrink: 0;
+}
+.who-block { display: none; }
+@media (min-width: 900px) { .who-block { display: block; } }
+.who { font-size: var(--sv-text-sm); font-weight: 500; color: var(--sv-text-primary); text-decoration: none; }
+.who:hover { color: var(--sv-accent-text); }
+.role { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+
+.icon-btn {
+  width: 30px; height: 30px; border-radius: var(--sv-radius-sm); border: 1px solid var(--sv-border);
+  background: var(--sv-surface-2); color: var(--sv-text-secondary);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  text-decoration: none; flex-shrink: 0;
+}
+.icon-btn:hover, .icon-btn.active { color: var(--sv-accent-text); border-color: var(--sv-accent); }
+
+.guest-menu { display: flex; gap: var(--sv-space-3); align-items: center; }
+.link-entrar { color: var(--sv-accent-text); text-decoration: none; font-size: var(--sv-text-md); white-space: nowrap; }
+.btn-registro {
+  background: var(--sv-accent); color: var(--sv-accent-ink); padding: var(--sv-space-2) var(--sv-space-3);
+  border-radius: var(--sv-radius-sm); text-decoration: none; font-size: var(--sv-text-md); font-weight: 600; white-space: nowrap;
+}
+
+/* --- BODY: riel izquierdo (repropuesto a "en vivo") + contenido --- */
+.body { display: flex; flex: 1; min-width: 0; }
+
+.rail {
+  display: none; flex-direction: column; gap: var(--sv-space-3);
+  width: 208px; flex-shrink: 0;
+  background: var(--sv-surface); border-right: 1px solid var(--sv-border);
+  padding: var(--sv-space-5) var(--sv-space-4);
+  // Con los partidos en vivo Y los accesos directos, el riel ya no cabe de una pieza en una
+  // pantalla baja. Se queda fijo y se desplaza por dentro, en vez de estirar la página.
+  align-self: flex-start;
+  position: sticky; top: 0;
+  max-height: 100vh; overflow-y: auto;
+  @media (min-width: 900px) { display: flex; }
+}
+.rail-label {
+  display: flex; align-items: center; gap: var(--sv-space-2);
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--sv-text-muted);
+  margin-bottom: var(--sv-space-1);
+}
+// El indicador de "hay directo". Antes era un punto de 6px que solo parpadeaba en opacidad,
+// y a ese tamaño un parpadeo se lee como un fallo de pintado, no como una señal. Ahora es un
+// punto sólido con un anillo que sale de él, que es el gesto que ya significa "en directo"
+// en cualquier reproductor: se entiende sin explicación y no da tirones.
+.rail-label .dot {
+  position: relative;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--sv-border-strong);
+  flex-shrink: 0;
+}
+.rail-label .dot.live {
+  background: var(--sv-danger);
+  &::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid var(--sv-danger);
+    animation: latido-anillo 1.8s ease-out infinite;
+  }
+}
+@keyframes latido-anillo {
+  0%   { transform: scale(1);   opacity: 0.9; }
+  70%  { transform: scale(3.2); opacity: 0; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+
+.rail-chip {
+  display: flex; flex-direction: column; gap: var(--sv-space-1);
+  background: var(--sv-surface-2); border: 1px solid var(--sv-border); border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-2) var(--sv-space-3); text-decoration: none; color: inherit;
+  // Que se note que se puede pinchar antes de pincharlo: el color de fondo solo era muy
+  // sutil y la tarjeta parecía un bloque de información, no un enlace.
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.rail-chip:hover {
+  background: var(--sv-surface-hover);
+  border-color: var(--sv-border-strong);
+  transform: translateY(-1px);
+}
+// El clic tiene que devolver algo al momento, sin esperar a que cargue la página siguiente.
+.rail-chip:active { transform: translateY(0) scale(0.985); }
+
+// --- cabecera de la tarjeta: competición y minuto ---
+.rail-meta {
+  display: flex; align-items: center; gap: var(--sv-space-1); min-width: 0;
+  margin-bottom: 2px;
+}
+.rail-liga-logo { width: 13px; height: 13px; object-fit: contain; flex-shrink: 0; }
+// La bandera va en rectángulo con esquina redonda, no en círculo: recortada en redondo
+// muchas banderas pierden justo la franja que las distingue.
+.rail-bandera {
+  width: 15px; height: 11px; object-fit: cover; flex-shrink: 0;
+  border-radius: 2px; border: 1px solid var(--sv-border);
+}
+.rail-liga-nombre {
+  flex: 1; min-width: 0;
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--sv-text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+// El minuto es el dato que cambia, así que es el único de la cabecera con color fuerte.
+.rail-minuto {
+  flex-shrink: 0;
+  font-size: var(--sv-text-xs); font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--sv-danger);
+  background: color-mix(in srgb, var(--sv-danger) 12%, transparent);
+  border-radius: var(--sv-radius-xs); padding: 1px var(--sv-space-1);
+}
+
+.rail-fila { display: flex; align-items: center; gap: var(--sv-space-2); min-width: 0; }
+.rail-escudo { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+.rail-equipo {
+  font-size: var(--sv-text-xs); color: var(--sv-text-secondary);
+  // El nombre cede espacio: el marcador nunca debe salirse ni empujar el escudo.
+  flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rail-goles { font-size: var(--sv-text-sm); font-weight: 700; color: var(--sv-text-secondary); flex-shrink: 0; }
+
+// Quien va ganando se resalta; el otro se queda en gris. Con dos filas iguales
+// había que leer los números para saberlo.
+.rail-fila--gana .rail-equipo { color: var(--sv-text-primary); font-weight: 600; }
+.rail-fila--gana .rail-goles { color: var(--sv-danger); }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+.rail-empty { font-size: var(--sv-text-sm); color: var(--sv-text-muted); }
+
+// --- accesos directos de competición ---------------------------------------------------
+// La barra deja de ser solo un marcador y pasa a ser también navegación, así que necesita
+// separar visualmente sus dos mitades.
+.rail-label--seccion {
+  margin-top: var(--sv-space-4);
+  padding-top: var(--sv-space-4);
+  border-top: 1px solid var(--sv-border);
+}
+
+.rail-liga {
+  display: flex; align-items: center; gap: var(--sv-space-2);
+  padding: var(--sv-space-2) var(--sv-space-2);
+  text-decoration: none; color: var(--sv-text-secondary);
+  border: 1px solid transparent; border-radius: var(--sv-radius-md);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.rail-liga:hover {
+  background: var(--sv-surface-hover);
+  border-color: var(--sv-border);
+  color: var(--sv-text-primary);
+  transform: translateX(2px);   // se desplaza hacia el contenido, hacia donde lleva
+}
+.rail-liga:active { transform: translateX(0) scale(0.985); }
+
+.rail-liga-escudo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+.rail-liga-texto {
+  flex: 1; min-width: 0;
+  font-size: var(--sv-text-sm); font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+// Los accesos directos van justo debajo, no empujados al fondo por el `margin-top: auto`
+// que sí quiere el enlace de los partidos en vivo.
+.rail-ver-todos--ligas { margin-top: var(--sv-space-2); }
+
+// Era un enlace de texto con subrayado al pasar por encima, que en medio de tarjetas se veía
+// como algo pegado. Ahora comparte la forma de las tarjetas de arriba: mismo borde, mismo
+// radio, misma reacción al hover.
+.rail-ver-todos {
+  display: flex; align-items: center; justify-content: center; gap: var(--sv-space-2);
+  font-size: var(--sv-text-sm); font-weight: 600;
+  color: var(--sv-accent-text); text-decoration: none;
+  border: 1px solid var(--sv-border); border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-2) var(--sv-space-3);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.rail-ver-todos:hover {
+  background: var(--sv-surface-hover);
+  border-color: var(--sv-accent-text);
+  transform: translateY(-1px);
+}
+.rail-ver-todos:active { transform: translateY(0) scale(0.985); }
+
+// Quien tenga puesto "reducir movimiento" en su sistema no debería ver nada moviéndose:
+// el latido del directo es decorativo y los desplazamientos del hover también.
+@media (prefers-reduced-motion: reduce) {
+  .rail-label .dot.live::after { animation: none; }
+  .rail-chip, .rail-ver-todos, .rail-liga { transition: none; }
+  .rail-chip:hover, .rail-ver-todos:hover, .rail-liga:hover { transform: none; }
+}
+
+/* --- CONTENIDO --- */
+.content {
+  padding: var(--sv-space-4); width: 100%; box-sizing: border-box; min-width: 0;
+
+  // `margin-inline: auto` no sobra: sin el, el `max-width` de abajo recorta el contenido a
+  // 1180px pero lo deja pegado al borde IZQUIERDO, con todo el hueco sobrante a la derecha.
+  // En un monitor de 2560px eso es media pantalla vacia a un lado y la pagina descuadrada.
+  margin-inline: auto;
+
+  @media (min-width: 768px) { padding: var(--sv-space-6) var(--sv-space-6) var(--sv-space-7); max-width: 1180px; }
+}

@@ -1,0 +1,269 @@
+$cut-sm: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+
+h1 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-2xl); letter-spacing: 0.3px; margin-bottom: var(--sv-space-4); }
+.vacio { color: var(--sv-text-muted); text-align: center; padding: var(--sv-space-6) 0 !important; }
+
+.buscador-wrap { position: relative; max-width: 420px; margin-bottom: var(--sv-space-3); }
+.buscador {
+  width: 100%; box-sizing: border-box;
+  background: var(--sv-surface); border: 1px solid var(--sv-border); color: var(--sv-text-primary);
+  padding: var(--sv-space-2) var(--sv-space-3); font-size: var(--sv-text-md); font-family: inherit;
+}
+.buscador:focus { outline: none; border-color: var(--sv-accent); }
+.buscador-resultados {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10;
+  list-style: none; margin: 0; padding: var(--sv-space-1);
+  background: var(--sv-surface); border: 1px solid var(--sv-border-strong);
+  max-height: 300px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.buscador-resultados li { display: block; }
+// Mismo cambio que en el comparador: el <li> solo agrupa, el <button> es lo alcanzable.
+.resultado-item {
+  display: flex; align-items: center; gap: var(--sv-space-2); width: 100%;
+  padding: var(--sv-space-2) var(--sv-space-2); cursor: pointer;
+  border-radius: var(--sv-radius-xs);
+  background: none; border: 0; color: inherit; font-family: inherit; text-align: left;
+}
+.resultado-item:hover { background: var(--sv-surface-hover); }
+.resultado-item:focus-visible {
+  outline: 2px solid var(--sv-accent-text); outline-offset: -2px;
+  background: var(--sv-surface-hover);
+}
+.resultado-logo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+.resultado-nombre { flex: 1; font-size: var(--sv-text-md); }
+.resultado-pais { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+
+.filtros { display: flex; gap: var(--sv-space-3); align-items: center; flex-wrap: wrap; margin-bottom: var(--sv-space-5); }
+.filtros select, .filtros input {
+  background: var(--sv-surface); border: 1px solid var(--sv-border); color: var(--sv-text-primary);
+  padding: var(--sv-space-2) var(--sv-space-3); font-size: var(--sv-text-md); font-family: inherit;
+}
+.filtros select:focus, .filtros input:focus { outline: none; border-color: var(--sv-accent); }
+.filtros input.input-temporada { width: 90px; }
+
+.btn-favorito {
+  background: none; border: none; cursor: pointer;
+  font-size: 1.1rem; line-height: 1; color: var(--sv-amber-text);
+}
+.btn-favorito:disabled { cursor: default; opacity: 0.5; }
+
+.tabla-wrap {
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut-sm; overflow-x: auto;
+}
+
+table { min-width: 720px; }
+th {
+  text-align: left; padding: var(--sv-space-3) var(--sv-space-3); font-size: var(--sv-text-xs); text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--sv-text-muted); border-bottom: 1px solid var(--sv-border);
+}
+td { text-align: left; padding: var(--sv-space-3) var(--sv-space-3); border-bottom: 1px solid var(--sv-border); font-size: var(--sv-text-md); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--sv-surface-hover); }
+
+.mono { font-family: 'JetBrains Mono', monospace; }
+.pos { color: var(--sv-text-muted); }
+.pts { font-weight: 700; color: var(--sv-text-primary); }
+
+.equipo-cell {
+  display: flex; align-items: center; gap: var(--sv-space-3);
+  color: var(--sv-text-primary); text-decoration: none; font-weight: 500;
+}
+.equipo-cell:hover { color: var(--sv-accent-text); }
+.escudo { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+
+// V = victoria (verde/lima), E = empate (gris), D = derrota (rojo) -- mismo trío de estados
+// que "W/D/L" en inglés, con las letras en español para que coincida con el resto de la UI.
+.forma { display: flex; gap: 3px; }
+.forma-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; font-size: var(--sv-text-xs); font-weight: 700;
+  font-family: 'JetBrains Mono', monospace; color: var(--sv-bg);
+}
+.forma-badge--v { background: var(--sv-accent); }
+.forma-badge--e { background: var(--sv-text-muted); }
+.forma-badge--d { background: var(--sv-danger); color: var(--sv-text-primary); }
+.forma-vacia { color: var(--sv-text-muted); font-size: var(--sv-text-sm); }
+
+// Cabecera de grupo. Solo aparece en competiciones con fase de grupos (Mundial, Europa
+// League...); una liga de tabla única sigue viéndose sin ningún título encima.
+.grupo-header {
+  font-size: var(--sv-text-sm); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sv-text-muted); margin: var(--sv-space-5) 0 var(--sv-space-2);
+}
+.grupo-header:first-of-type { margin-top: 0; }
+
+/* ------------------------------------------------------------------- Rankings ---- */
+
+.ranking { margin-top: var(--sv-space-6); }
+.ranking-cabecera {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--sv-space-3); margin-bottom: var(--sv-space-3);
+}
+.ranking-titulo { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-lg); letter-spacing: 0.3px; margin: 0; }
+.ranking-tabs { display: flex; gap: var(--sv-space-2); flex-wrap: wrap; }
+.ranking-tab {
+  background: none; border: 1px solid var(--sv-border); color: var(--sv-text-secondary);
+  padding: var(--sv-space-1) var(--sv-space-3); font-size: var(--sv-text-sm); cursor: pointer; font-family: inherit;
+}
+.ranking-tab:hover { color: var(--sv-text-primary); }
+.ranking-tab--activa { border-color: var(--sv-accent); color: var(--sv-accent-text); }
+
+.ranking-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.ranking-fila {
+  display: flex; align-items: center; gap: var(--sv-space-3);
+  background: var(--sv-surface); border: 1px solid var(--sv-border); padding: var(--sv-space-2) var(--sv-space-3);
+}
+.ranking-puesto { width: 22px; text-align: right; color: var(--sv-text-muted); font-size: var(--sv-text-sm); flex-shrink: 0; }
+.ranking-jugador { display: flex; align-items: center; gap: var(--sv-space-2); text-decoration: none; color: inherit; flex: 1; min-width: 0; }
+.ranking-jugador:hover .ranking-nombre { color: var(--sv-accent-text); }
+.ranking-foto { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1px solid var(--sv-border); flex-shrink: 0; }
+.ranking-nombre { font-size: var(--sv-text-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranking-equipo { display: flex; align-items: center; gap: var(--sv-space-2); text-decoration: none; color: var(--sv-text-secondary); min-width: 0; }
+.ranking-equipo:hover { color: var(--sv-text-primary); }
+.ranking-escudo { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+.ranking-equipo-nombre { font-size: var(--sv-text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranking-partidos { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+.ranking-valor { font-size: var(--sv-text-lg); font-weight: 700; width: 34px; text-align: right; }
+.ranking-pie { margin-top: var(--sv-space-3); }
+
+/* En móvil el equipo se cae: el nombre del jugador y el número son lo que importa. */
+@media (max-width: 560px) {
+  .ranking-equipo-nombre, .ranking-partidos { display: none; }
+}
+
+/* ---------------------------------------------------------- Escaparate de ligas ---- */
+
+.escaparate { margin: var(--sv-space-5) 0 var(--sv-space-6); }
+.escaparate-titulo {
+  font-size: var(--sv-text-sm); color: var(--sv-text-secondary); margin: 0 0 var(--sv-space-3);
+  display: flex; align-items: baseline; gap: var(--sv-space-2); flex-wrap: wrap;
+}
+.escaparate-pista { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+
+.escaparate-rejilla {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sv-space-3);
+}
+.escaparate-liga {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sv-space-2);
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  padding: var(--sv-space-4) var(--sv-space-3); cursor: pointer; font-family: inherit; color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.escaparate-liga:hover { border-color: var(--sv-accent); transform: translateY(-2px); }
+.escaparate-logo { width: 42px; height: 42px; object-fit: contain; }
+.escaparate-nombre {
+  font-size: var(--sv-text-sm); font-weight: 600; text-align: center; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.escaparate-pais { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+
+.btn-volver {
+  background: none; border: 1px solid var(--sv-border); color: var(--sv-text-secondary);
+  padding: var(--sv-space-2) var(--sv-space-3); font-size: var(--sv-text-sm); cursor: pointer; font-family: inherit; margin-bottom: var(--sv-space-4);
+}
+.btn-volver:hover { color: var(--sv-text-primary); border-color: var(--sv-border-strong); }
+
+/* ------------------------------------------------- Zonas de la clasificación ---- */
+
+/* Los colores van por atributo data-zona y no por una clase por competición: el tipo de
+   zona lo decide la API fila a fila (ver zona-clasificacion.util.ts), así que aquí solo
+   hay que tener un color por tipo, no reglas por liga. */
+/* En `:host` y NO en `:root`. Con la encapsulacion por defecto de Angular, un `:root`
+   escrito dentro del SCSS de un componente se reescribe a `:root[_ngcontent-xxx]`, que no
+   existe: el <html> no lleva el atributo de contenido del componente. Resultado: las
+   variables no se declaraban en ninguna parte, `var(--zona-champions)` no resolvia y la
+   barra de color caia al `transparent` del fallback. Los datos estaban bien (La Liga 2025
+   trae 5 de Champions, 2 de Europa, 1 de Conference y 3 de descenso); lo que no habia era
+   color. `:host` es el propio componente, y de ahi heredan la tabla y la leyenda. */
+:host {
+  --zona-champions: #3b82f6;
+  --zona-europa: #f97316;
+  --zona-conference: #22c55e;
+  --zona-libertadores: #14b8a6;
+  --zona-sudamericana: #a855f7;
+  --zona-ascenso: #22c55e;
+  --zona-playoff: #8b5cf6;
+  --zona-promocion: #fb7185;
+  --zona-descenso: #ef4444;
+  --zona-campeon: #fbbf24;
+}
+
+tbody tr[data-zona] td:first-child { position: relative; }
+/* Una barra de color pegada al número, en vez de teñir la fila entera: la tabla ya tiene
+   once columnas y un fondo de color en cada una la vuelve ilegible. */
+tbody tr[data-zona] td:first-child::before {
+  content: '';
+  position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px;
+  background: var(--color-zona, transparent);
+}
+tbody tr[data-zona="CHAMPIONS"] { --color-zona: var(--zona-champions); }
+tbody tr[data-zona="EUROPA"] { --color-zona: var(--zona-europa); }
+tbody tr[data-zona="CONFERENCE"] { --color-zona: var(--zona-conference); }
+tbody tr[data-zona="LIBERTADORES"] { --color-zona: var(--zona-libertadores); }
+tbody tr[data-zona="SUDAMERICANA"] { --color-zona: var(--zona-sudamericana); }
+tbody tr[data-zona="ASCENSO"] { --color-zona: var(--zona-ascenso); }
+tbody tr[data-zona="PLAYOFF"] { --color-zona: var(--zona-playoff); }
+tbody tr[data-zona="PROMOCION"] { --color-zona: var(--zona-promocion); }
+tbody tr[data-zona="DESCENSO"] { --color-zona: var(--zona-descenso); }
+
+/* El campeón de una temporada ya cerrada: dorado, y el único al que se le tiñe el fondo. */
+tbody tr.fila-campeon { background: rgba(251, 191, 36, 0.09); }
+tbody tr.fila-campeon td:first-child { color: var(--zona-campeon); font-weight: 700; }
+tbody tr.fila-campeon td:first-child::before { background: var(--zona-campeon); }
+
+.leyenda {
+  display: flex; flex-wrap: wrap; gap: var(--sv-space-2) var(--sv-space-4);
+  margin: var(--sv-space-3) 0 var(--sv-space-1); font-size: var(--sv-text-xs); color: var(--sv-text-secondary);
+}
+.leyenda-item { display: inline-flex; align-items: center; gap: var(--sv-space-2); }
+.leyenda-color { width: 10px; height: 10px; border-radius: 2px; background: var(--sv-border-strong); }
+.leyenda-color[data-zona="CHAMPIONS"] { background: var(--zona-champions); }
+.leyenda-color[data-zona="EUROPA"] { background: var(--zona-europa); }
+.leyenda-color[data-zona="CONFERENCE"] { background: var(--zona-conference); }
+.leyenda-color[data-zona="LIBERTADORES"] { background: var(--zona-libertadores); }
+.leyenda-color[data-zona="SUDAMERICANA"] { background: var(--zona-sudamericana); }
+.leyenda-color[data-zona="ASCENSO"] { background: var(--zona-ascenso); }
+.leyenda-color[data-zona="PLAYOFF"] { background: var(--zona-playoff); }
+.leyenda-color[data-zona="PROMOCION"] { background: var(--zona-promocion); }
+.leyenda-color[data-zona="DESCENSO"] { background: var(--zona-descenso); }
+.leyenda-color--campeon { background: var(--zona-campeon); }
+
+/* ------------------------------------------------------------- Campeón/líder ---- */
+
+.campeon {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sv-space-3);
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  border-left: 3px solid var(--zona-campeon, #fbbf24);
+  padding: var(--sv-space-3) var(--sv-space-4); margin-bottom: var(--sv-space-4);
+}
+.campeon-copa { font-size: var(--sv-text-xl); line-height: 1; }
+.campeon-texto { display: inline-flex; align-items: baseline; gap: var(--sv-space-2); }
+.campeon-etiqueta {
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--sv-text-muted);
+}
+.campeon-equipo { font-size: var(--sv-text-md); font-weight: 700; color: var(--sv-text-primary); text-decoration: none; }
+.campeon-equipo:hover { color: var(--sv-accent-text); }
+.campeon-equipo--anterior { font-weight: 600; font-size: var(--sv-text-sm); }
+.campeon-pendiente { font-size: var(--sv-text-sm); color: var(--sv-text-muted); font-style: italic; }
+.campeon-separador { color: var(--sv-border-strong); }
+
+/* --- partidos de la competición -------------------------------------------------------- */
+.seccion-partidos { margin-top: var(--sv-space-6); }
+
+.seccion-cabecera {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sv-space-3); flex-wrap: wrap;
+  margin-bottom: var(--sv-space-3);
+
+  h3 { margin: 0; }
+}
+
+/* La explicación de por qué un hueco está vacío: más pequeña y apagada que el "no hay nada",
+   porque es una nota al pie, no el mensaje. Mismo tratamiento que en el detalle de partido. */
+.nota-cobertura {
+  display: block;
+  margin-top: var(--sv-space-1);
+  font-size: var(--sv-text-xs);
+  color: var(--sv-text-muted);
+}

@@ -1,0 +1,282 @@
+<h1>{{ 'standings_2' | transloco }}</h1>
+
+@if (error()) {
+  <p class="error-message">{{ error() }}</p>
+}
+
+<div class="buscador-wrap">
+  <input type="text" [placeholder]="'search_any_league_or_competition_all_countri_2' | transloco" class="buscador"
+         [value]="busqueda()" (input)="busqueda.set($any($event.target).value)" [attr.aria-label]="'search_any_league_or_competition_all_countri' | transloco">
+  @if (resultadosBusqueda().length > 0) {
+    <ul class="buscador-resultados" role="listbox" [attr.aria-label]="'leagues_found' | transloco">
+      @for (liga of resultadosBusqueda(); track liga.idLiga) {
+        <li role="option" [attr.aria-selected]="false">
+          <button type="button" class="resultado-item" (click)="seleccionarDesdeBusqueda(liga)">
+            <img svImagen="liga" [src]="liga.logo" alt="" class="resultado-logo">
+            <span class="resultado-nombre">{{ liga.nombre }}</span>
+            <span class="resultado-pais">{{ liga.pais }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<div class="filtros">
+  <!-- Ver el comentario del mismo control en partidos-listado. -->
+  <app-selector-pais [paises]="paises()" [seleccionado]="paisSeleccionado()"
+                     (cambio)="seleccionarPais($event)" />
+
+
+  <!-- Desplegable con las temporadas que existen de verdad, en vez de un año escrito a mano:
+       así no se puede pedir una temporada vacía sin querer, y se ve de un vistazo hasta dónde
+       llega el histórico. Las que aún no se han jugado se marcan como tales. -->
+  <!-- Sin competición elegida no hay temporada que elegir: el desplegable saldría vacío
+       o, peor, con años sueltos que no son de ninguna liga. -->
+  @if (ligaSeleccionada() && temporadasDisponibles().length > 0) {
+    <select class="select-temporada" [attr.aria-label]="'season' | transloco"
+            (change)="temporada.set(+$any($event.target).value); cargarTabla()">
+      @for (t of temporadasDisponibles(); track t.temporada) {
+        <option [value]="t.temporada" [selected]="t.temporada === temporada()">
+          {{ t.temporada }}/{{ (t.temporada + 1) % 100 | number: '2.0-0' }}{{ t.conDatos ? '' : ' (sin jugar)' }}
+        </option>
+      }
+    </select>
+  } @else if (ligaSeleccionada()) {
+    <input type="number" class="input-temporada" [value]="temporada()"
+           [attr.aria-label]="'season' | transloco"
+           (change)="temporada.set(+$any($event.target).value); cargarTabla()">
+  }
+  @if (authService.currentUser() && ligaSeleccionada()) {
+    <button type="button" class="btn-favorito" [disabled]="cargandoFavorito()" (click)="toggleFavorito()"
+            [title]="(esFavorito() ? 'remove_from_favourites' : 'add_to_favourites') | transloco">
+      {{ esFavorito() ? '★' : '☆' }}
+    </button>
+  }
+</div>
+
+<!-- ================================================== Escaparate de ligas ==== -->
+<!-- La pantalla ya no abre una competición de oficio: se elige aquí, viendo el escudo.
+     Paginado porque el catálogo pasa de 1.200 competiciones. -->
+@if (!ligaSeleccionada()) {
+  <div class="escaparate">
+    <p class="escaparate-titulo">
+      @if (paisSeleccionado()) {
+        {{ 'competitions_of_country' | transloco: { pais: paisSeleccionado() } }}
+      } @else {
+        {{ 'pick_a_competition' | transloco }}
+        <span class="escaparate-pista">{{ 'or_filter_by_country_above' | transloco }}</span>
+      }
+    </p>
+
+    <div class="escaparate-rejilla">
+      @for (liga of ligasPaginadas(); track liga.idLiga) {
+        <button type="button" class="escaparate-liga" (click)="seleccionarLiga(liga)">
+          <img svImagen="liga" [src]="liga.logo" [alt]="liga.nombre" class="escaparate-logo">
+          <span class="escaparate-nombre">{{ liga.nombre }}</span>
+          @if (liga.pais) { <span class="escaparate-pais">{{ liga.pais }}</span> }
+        </button>
+      } @empty {
+        <p class="vacio">{{ 'no_competitions_for_this_country' | transloco }}</p>
+      }
+    </div>
+
+      <sv-paginador [pagina]="paginaLigas()" [totalPaginas]="totalPaginasLigas()" (cambio)="cambiarPaginaLigas($event)" />
+  </div>
+}
+
+@if (ligaSeleccionada()) {
+  <button type="button" class="btn-volver" (click)="volverAlEscaparate()">{{ 'change_competition' | transloco }}</button>
+}
+
+<!-- Quién gana esto: el campeón si la temporada acabó, y si está en curso, quién manda
+     ahora y quién lo ganó el año pasado. Sale del puesto 1 de la propia tabla, o sea que no
+     cuesta ninguna petición a la API. -->
+@if (ligaSeleccionada() && tituloTemporada(); as titulo) {
+  <div class="campeon">
+    <span class="campeon-copa" aria-hidden="true">🏆</span>
+    <span class="campeon-texto">
+      <span class="campeon-etiqueta">{{ titulo.etiqueta }} {{ temporada() }}</span>
+      <a class="campeon-equipo" [routerLink]="['/estadisticas/equipos', titulo.idEquipo]">{{ titulo.equipo }}</a>
+    </span>
+
+    @if (!temporadaAcabada()) {
+      <span class="campeon-separador" aria-hidden="true">·</span>
+      <span class="campeon-texto">
+        <span class="campeon-etiqueta">Campeón {{ temporada() }}</span>
+        <span class="campeon-pendiente">{{ 'to_be_confirmed' | transloco }}</span>
+      </span>
+    }
+
+    @if (campeonAnterior(); as anterior) {
+      <span class="campeon-separador" aria-hidden="true">·</span>
+      <span class="campeon-texto">
+        <span class="campeon-etiqueta">Campeón {{ anterior.temporada }}</span>
+        <a class="campeon-equipo campeon-equipo--anterior"
+           [routerLink]="['/estadisticas/equipos', anterior.idEquipo]">{{ anterior.equipo }}</a>
+      </span>
+    }
+  </div>
+}
+
+@if (ligaSeleccionada()) {
+  <!-- Un esqueleto del alto que va a tener la tabla: reserva el hueco para que al llegar los
+       datos ocupen el sitio que ya había, en vez de empujar media página hacia abajo. -->
+  @if (cargandoTabla()) {
+    <sv-cargando [filas]="10" texto="Cargando la clasificación..." />
+  }
+  <!-- Una tabla por grupo. En una liga normal solo hay uno y no se pinta título, así que
+       se ve exactamente igual que antes; en un Mundial o una fase de grupos, cada grupo va
+       con su cabecera en vez de salir todos mezclados en una sola lista. -->
+  @for (g of grupos(); track g.grupo) {
+    @if (hayGrupos()) {
+      <h3 class="grupo-header">{{ g.grupo || ('no_group' | transloco) }}</h3>
+    }
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>{{ 'team' | transloco }}</th><th>Pts</th><th>{{ 'mp' | transloco }}</th><th>{{ 'w' | transloco }}</th><th>{{ 'd' | transloco }}</th><th>{{ 'l' | transloco }}</th><th>{{ 'gf' | transloco }}</th><th>{{ 'ga' | transloco }}</th><th>{{ 'gd' | transloco }}</th><th>{{ 'form' | transloco }}</th></tr>
+        </thead>
+        <tbody>
+          @for (fila of g.filas; track fila.equipo?.idEquipo ?? $index) {
+            <!-- El color sale de lo que dice la API de esa posición, no de reglas nuestras
+                 por liga. El primero se marca solo en temporadas ya acabadas. -->
+            <tr [attr.data-zona]="zonaDe(fila)?.tipo"
+                [class.fila-campeon]="fila.posicion === 1 && temporadaAcabada() && !hayGrupos()"
+                [title]="fila.estadoCompeticion">
+              <td class="mono pos">{{ fila.posicion }}</td>
+              <td>
+                <a [routerLink]="['/estadisticas/equipos', fila.equipo?.idEquipo]" class="equipo-cell">
+                  <img svImagen="equipo" [src]="fila.equipo?.logo" [alt]="fila.equipo?.nombre" class="escudo">
+                  {{ fila.equipo?.nombre }}
+                </a>
+              </td>
+              <td class="mono pts">{{ fila.puntos }}</td>
+              <td class="mono">{{ fila.partidosJugados }}</td>
+              <td class="mono">{{ fila.partidosGanados }}</td>
+              <td class="mono">{{ fila.partidosEmpatados }}</td>
+              <td class="mono">{{ fila.partidosPerdidos }}</td>
+              <td class="mono">{{ fila.golesFavor }}</td>
+              <td class="mono">{{ fila.golesContra }}</td>
+              <td class="mono">{{ fila.diferenciaGoles }}</td>
+              <td>
+                <div class="forma">
+                  @for (r of fila.forma; track $index) {
+                    <span class="forma-badge" [class.forma-badge--v]="r === 'V'" [class.forma-badge--e]="r === 'E'" [class.forma-badge--d]="r === 'D'">{{ r }}</span>
+                  } @empty {
+                    <span class="forma-vacia">—</span>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="11" class="vacio">
+                {{ 'no_standings_for_this_league_season' | transloco }}
+                <!-- Sin esto, una copa se queda en blanco y parece que la página está rota.
+                     Solo 788 de las 1.244 competiciones publican tabla. -->
+                @if (ligaSeleccionada()?.coberturaClasificacion === false) {
+                  <span class="nota-cobertura">{{ 'coverage_no_standings' | transloco }}</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}
+
+<!-- ================================================ Partidos de la liga ==== -->
+<!-- La otra mitad de lo que se viene a mirar en una competición: cómo va y cuándo juegan.
+     Antes había que salir a Partidos y volver a filtrar por esta misma liga a mano. -->
+@if (ligaSeleccionada()) {
+  <section class="seccion-partidos">
+    <div class="seccion-cabecera">
+      <h3>{{ 'matches' | transloco }}</h3>
+      <a class="enlace-seccion" [routerLink]="['/partidos']"
+         [queryParams]="{ liga: ligaSeleccionada()!.idLiga }">{{ 'see_all' | transloco }}</a>
+    </div>
+
+    @if (cargandoPartidos()) {
+      <sv-cargando [filas]="5" texto="Cargando los partidos..." />
+    } @else if (partidos().length === 0) {
+      <p class="vacio">{{ 'no_matches_on_record_for_this_season' | transloco }}</p>
+    } @else {
+      <div class="tabla-wrap">
+        <table>
+          <tbody>
+            @for (p of partidos(); track p.idPartido) {
+              <tr svFilaPartido [partido]="p" formatoFecha="fecha"
+                  [routerLink]="['/partidos', p.idPartido]"
+                  [queryParams]="{local: p.idEquipoLocal, visitante: p.idEquipoVisitante}"></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <sv-paginador [pagina]="paginaPartidos()" [totalPaginas]="totalPaginasPartidos()"
+                    [deshabilitado]="cargandoPartidos()" etiqueta="partidos"
+                    (cambio)="cargarPartidos($event)" />
+    }
+  </section>
+}
+
+<!-- Leyenda: solo las zonas que existen de verdad en esta tabla. En una Segunda no pinta
+     nada explicar de qué color va la Champions. -->
+@if (ligaSeleccionada() && (leyenda().length > 0 || temporadaAcabada())) {
+  <div class="leyenda">
+    @if (temporadaAcabada() && !hayGrupos()) {
+      <span class="leyenda-item"><i class="leyenda-color leyenda-color--campeon"></i>{{ 'champion' | transloco }}</span>
+    }
+    @for (zona of leyenda(); track zona.tipo) {
+      <span class="leyenda-item">
+        <i class="leyenda-color" [attr.data-zona]="zona.tipo"></i>{{ zona.etiqueta }}
+      </span>
+    }
+  </div>
+}
+
+<!-- ==================================================================== Rankings ==== -->
+<!-- Goleadores, asistentes y tarjetas de la competición. Salen de API-Football en el
+     momento (cacheados 6h en el backend), no de una tabla nuestra: es un agregado que
+     ellos ya calculan y que se mueve como mucho una vez por jornada. Hay competiciones que
+     no lo publican, y entonces esta sección no se pinta. -->
+@if (ligaSeleccionada()) {
+  <section class="ranking">
+    <div class="ranking-cabecera">
+      <h2 class="ranking-titulo">{{ 'standout_players' | transloco }}</h2>
+      <div class="ranking-tabs">
+        @for (tipo of tiposRanking; track tipo.clave) {
+          <button type="button" class="ranking-tab" [class.ranking-tab--activa]="tipoRanking() === tipo.clave"
+                  (click)="cambiarTipoRanking(tipo.clave)">{{ tipo.etiqueta }}</button>
+        }
+      </div>
+    </div>
+
+    @if (cargandoRanking()) {
+      <sv-cargando />
+    } @else if (ranking().length === 0) {
+      <p class="vacio">{{ 'this_competition_does_not_publish_this_stati' | transloco }}</p>
+    } @else {
+      <ol class="ranking-lista">
+        @for (fila of rankingPaginado(); track fila.idJugador ?? fila.puesto) {
+          <li class="ranking-fila">
+            <span class="mono ranking-puesto">{{ fila.puesto }}</span>
+            <a class="ranking-jugador" [routerLink]="['/estadisticas/jugadores', fila.idJugador]">
+              <img svImagen="jugador" [src]="fila.foto" [alt]="fila.nombre" class="ranking-foto">
+              <span class="ranking-nombre">{{ fila.nombre }}</span>
+            </a>
+            <a class="ranking-equipo" [routerLink]="['/estadisticas/equipos', fila.idEquipo]">
+              <img svImagen="equipo" [src]="fila.escudoEquipo" alt="" class="ranking-escudo">
+              <span class="ranking-equipo-nombre">{{ fila.nombreEquipo }}</span>
+            </a>
+            @if (fila.partidos) { <span class="mono ranking-partidos">{{ fila.partidos }} {{ 'mp' | transloco }}</span> }
+            <span class="mono ranking-valor">{{ fila.valor }}</span>
+          </li>
+        }
+      </ol>
+        <sv-paginador [pagina]="paginaRanking()" [totalPaginas]="totalPaginasRanking()" (cambio)="cambiarPaginaRanking($event)" />
+      <p class="sub ranking-pie">{{ columnaRanking() }} en {{ ligaSeleccionada()?.nombre }} · temporada {{ temporada() }}</p>
+    }
+  </section>
+}

@@ -1,0 +1,50 @@
+<button type="button" class="selector-pais-boton" (click)="alternar()"
+        [attr.aria-expanded]="abierto()" aria-haspopup="listbox">
+  <span class="selector-pais-valor">{{ texto() }}</span>
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+    <polyline points="6 9 12 15 18 9"></polyline>
+  </svg>
+</button>
+
+@if (abierto()) {
+  <div class="selector-pais-panel">
+    <input type="text" class="selector-pais-buscar" [placeholder]="'type_a_country' | transloco"
+           [attr.aria-label]="'search_country' | transloco"
+           [value]="filtro()"
+           (input)="filtro.set($any($event.target).value)"
+           (keydown)="alTeclear($event)">
+
+    <ul class="selector-pais-lista" role="listbox">
+      @if (etiquetaTodos() && !filtro().trim()) {
+        <li><button type="button" class="selector-pais-opcion selector-pais-opcion--todos"
+                    (click)="elegirTodos()">{{ etiquetaTodos() }}</button></li>
+      }
+
+      @if (destacados().length > 0) {
+        <li class="selector-pais-grupo" aria-hidden="true">{{ 'most_searched' | transloco }}</li>
+        @for (pais of destacados(); track pais) {
+          <li>
+            <button type="button" class="selector-pais-opcion"
+                    [class.activo]="indiceDe(pais) === activo()"
+                    [class.elegido]="pais === seleccionado()"
+                    (click)="elegir(pais)">{{ pais }}</button>
+          </li>
+        }
+        <li class="selector-pais-grupo" aria-hidden="true">{{ 'all_countries' | transloco }}</li>
+      }
+
+      @for (pais of resto(); track pais) {
+        <li>
+          <button type="button" class="selector-pais-opcion"
+                  [class.activo]="indiceDe(pais) === activo()"
+                  [class.elegido]="pais === seleccionado()"
+                  (click)="elegir(pais)">{{ pais }}</button>
+        </li>
+      }
+
+      @if (!hayResultados()) {
+        <li class="selector-pais-vacio">Ningún país coincide con "{{ filtro() }}".</li>
+      }
+    </ul>
+  </div>
+}

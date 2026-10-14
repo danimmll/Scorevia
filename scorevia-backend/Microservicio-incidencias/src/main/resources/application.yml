@@ -1,0 +1,75 @@
+logging:
+  file:
+    name: /logs/incidencias.log
+  level:
+    root: INFO
+    # El nivel del propio paquete, por variable y con INFO por defecto (igual que el
+    # Gateway). Estaba en DEBUG a fuego: con el LoggingAspect trazando cada metodo, eso
+    # convertia el log en 16 GB diarios en un servicio que no atendia a nadie. Para volver
+    # a verlo todo: INCIDENCIAS_LOG_LEVEL=DEBUG.
+    '[incidencias]': "${INCIDENCIAS_LOG_LEVEL:INFO}"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+      file-name-pattern: /logs/incidencias-%d{yyyy-MM-dd}-%i.log
+
+incidencias:
+  internal-secret: ${INCIDENCIAS_INTERNAL_SECRET}
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 3000
+        readTimeout: 5000
+
+server:
+  port: 8081
+
+spring:
+  application:
+    name: microservicio-incidencias
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 30000
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: ${SHOW_SQL:false}
+    hibernate:
+      ddl-auto: validate
+    properties:
+      "[jakarta.persistence.validation.mode]": none
+      hibernate:
+        default_schema: sch_incidencias
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: "http://${EUREKA_USERNAME:eureka}:${EUREKA_PASSWORD:eureka}@eureka-server:8761/eureka/"
+    healthcheck:
+      enabled: false
+  instance:
+    prefer-ip-address: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs/incidencias
+
+app:
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4200}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics

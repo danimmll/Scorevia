@@ -1,0 +1,76 @@
+<h1>{{ 'roles' | transloco }}</h1>
+
+@if (error()) { <p class="error-message">{{ error() }}</p> }
+@if (mensaje()) { <p class="ok-message">{{ mensaje() }}</p> }
+
+<div class="tabla-scroll">
+  <table>
+    <thead><tr><th>{{ 'name' | transloco }}</th><th>{{ 'active' | transloco }}</th><th></th></tr></thead>
+    <tbody>
+      @for (rol of roles(); track rol.idRol) {
+        <tr>
+          <td>{{ rol.nombreRol }}</td>
+          <td>{{ (rol.activo ? 'yes' : 'no') | transloco }}</td>
+          <td><button (click)="eliminar(rol)">{{ 'delete' | transloco }}</button></td>
+        </tr>
+      } @empty {
+        <tr><td colspan="3">{{ 'no_roles' | transloco }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<h2>{{ 'new_role' | transloco }}</h2>
+<form [formGroup]="nuevoRolForm" (ngSubmit)="crear()">
+  <input formControlName="nombreRol" [placeholder]="'role_name' | transloco" [attr.aria-label]="'role_name' | transloco">
+  <button type="submit">{{ 'create' | transloco }}</button>
+</form>
+
+<h2>{{ 'assign_remove_a_role_from_a_user' | transloco }}</h2>
+<form [formGroup]="asignacionForm">
+  <input type="number" formControlName="idUsuario" [placeholder]="'user_id' | transloco" [attr.aria-label]="'user_id' | transloco">
+  <input type="number" formControlName="idRol" [placeholder]="'role_id' | transloco" [attr.aria-label]="'role_id' | transloco">
+  <button type="button" (click)="asignar()">{{ 'assign' | transloco }}</button>
+  <button type="button" (click)="quitar()">{{ 'remove' | transloco }}</button>
+</form>
+
+<h2>{{ 'look_up_by_user_role' | transloco }}</h2>
+<p>{{ 'use_the_same_ids_as_above' | transloco }}</p>
+<div class="filtros">
+  <button type="button" (click)="verRolesDeUsuario()">{{ 'see_the_user_s_roles' | transloco }}</button>
+  <button type="button" (click)="verUsuariosDeRol()">{{ 'see_users_with_that_role' | transloco }}</button>
+</div>
+
+@if (consultaRolesUsuario().length) {
+  <div class="tabla-scroll">
+    <table>
+      <thead><tr><th>{{ 'role_id' | transloco }}</th><th>{{ 'role_name_2' | transloco }}</th><th>{{ 'active' | transloco }}</th></tr></thead>
+      <tbody>
+        @for (ur of consultaRolesUsuario(); track ur.idRol) {
+          <tr>
+            <td>{{ ur.idRol }}</td>
+            <td>{{ ur.nombreRol }}</td>
+            <td>{{ (ur.activoRol ? 'yes' : 'no') | transloco }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@if (consultaUsuariosRol().length) {
+  <div class="tabla-scroll">
+    <table>
+      <thead><tr><th>{{ 'user_id' | transloco }}</th><th>{{ 'user_name' | transloco }}</th><th>{{ 'active' | transloco }}</th></tr></thead>
+      <tbody>
+        @for (ur of consultaUsuariosRol(); track ur.idUsuario) {
+          <tr>
+            <td>{{ ur.idUsuario }}</td>
+            <td>{{ ur.nombreUsuario }}</td>
+            <td>{{ (ur.activoUsuario ? 'yes' : 'no') | transloco }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

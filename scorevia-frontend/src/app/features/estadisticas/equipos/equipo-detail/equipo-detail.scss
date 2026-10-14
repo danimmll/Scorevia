@@ -1,0 +1,134 @@
+$cut: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+$cut-sm: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+
+.volver {
+  display: inline-flex; align-items: center; gap: var(--sv-space-2);
+  color: var(--sv-text-secondary); font-size: var(--sv-text-sm); text-decoration: none;
+  margin-bottom: var(--sv-space-5);
+}
+.volver:hover { color: var(--sv-text-primary); }
+
+
+.hero {
+  display: flex; gap: var(--sv-space-6); align-items: center;
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut; padding: var(--sv-space-6); margin-bottom: var(--sv-space-6);
+}
+.escudo { width: 88px; height: 88px; object-fit: contain; flex-shrink: 0; }
+
+.info h1 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-2xl); margin: 0 0 var(--sv-space-3); letter-spacing: 0.3px; }
+
+.stats { display: flex; flex-wrap: wrap; gap: var(--sv-space-5); margin-bottom: var(--sv-space-3); }
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat-label { font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--sv-text-muted); }
+.stat-value { font-size: var(--sv-text-md); font-weight: 500; }
+
+.entrenador-link {
+  display: flex; align-items: center; gap: var(--sv-space-2); width: fit-content;
+  color: var(--sv-text-primary); text-decoration: none; font-size: var(--sv-text-md); font-weight: 600;
+}
+.entrenador-link:hover { color: var(--sv-accent-text); }
+.avatar-mini { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+
+.historial-entrenador-row {
+  flex-direction: row !important; align-items: center; gap: var(--sv-space-3) !important; cursor: pointer;
+  transition: background-color 0.15s;
+}
+.historial-entrenador-row:hover { background: var(--sv-surface-hover); }
+.historial-entrenador-row .lista-titulo { flex: 1; }
+
+.estadio {
+  display: flex; gap: var(--sv-space-5); align-items: center;
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut-sm; padding: var(--sv-space-5) var(--sv-space-5); margin-bottom: var(--sv-space-6);
+}
+.estadio-foto { width: 160px; height: 96px; object-fit: cover; flex-shrink: 0; clip-path: $cut-sm; }
+.estadio-info h2 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-lg); margin: 0 0 var(--sv-space-2); }
+
+section { margin-bottom: var(--sv-space-6); }
+section h2 {
+  font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-lg); letter-spacing: 0.3px;
+  margin: 0 0 var(--sv-space-4); color: var(--sv-text-primary);
+}
+
+.plantilla-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sv-space-3); }
+@media (min-width: 640px) { .plantilla-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) { .plantilla-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.jugador-card {
+  display: flex; align-items: center; gap: var(--sv-space-3);
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut-sm; padding: var(--sv-space-3); text-decoration: none; color: inherit;
+  transition: background-color 0.15s;
+}
+.jugador-card:hover { background: var(--sv-surface-hover); }
+.jugador-foto { width: 40px; height: 40px; object-fit: cover; flex-shrink: 0; clip-path: $cut-sm; background: var(--sv-surface-2); }
+.jugador-info { min-width: 0; }
+.jugador-nombre { font-size: var(--sv-text-md); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jugador-meta { font-size: var(--sv-text-sm); color: var(--sv-text-secondary); }
+.jugador-dorsal { font-family: 'JetBrains Mono', monospace; color: var(--sv-amber-text); font-weight: 700; margin-right: var(--sv-space-1); }
+
+
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.lista li {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--sv-space-3) var(--sv-space-4); background: var(--sv-surface); border: 1px solid var(--sv-border);
+}
+.lista-titulo { font-size: var(--sv-text-md); font-weight: 600; }
+.lista-sub { font-size: var(--sv-text-sm); color: var(--sv-text-secondary); display: flex; align-items: center; gap: var(--sv-space-1); flex-wrap: wrap; }
+.escudo-mini { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; }
+
+.partido-row {
+  flex-direction: row !important; align-items: center; gap: var(--sv-space-4) !important; cursor: pointer;
+  transition: background-color 0.15s;
+}
+.partido-row:hover { background: var(--sv-surface-hover); }
+.partido-fecha { font-size: var(--sv-text-sm); color: var(--sv-text-muted); flex-shrink: 0; width: 90px; }
+.partido-encuentro { flex: 1; font-size: var(--sv-text-md); font-weight: 500; display: flex; align-items: center; gap: var(--sv-space-2); }
+.vs { color: var(--sv-text-muted); font-size: var(--sv-text-sm); }
+.resultado { font-weight: 700; color: var(--sv-text-primary); }
+
+.estado-badge {
+  display: inline-flex; align-items: center; font-size: var(--sv-text-xs); font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; padding: 3px var(--sv-space-2); flex-shrink: 0;
+  color: var(--sv-text-secondary); border: 1px solid var(--sv-border);
+}
+.estado-badge--vivo { color: var(--sv-danger); border-color: var(--sv-danger); }
+.estado-badge--finalizado { color: var(--sv-text-muted); }
+
+.vacio { color: var(--sv-text-muted); font-size: var(--sv-text-md); }
+
+// La competición de cada partido: antes solo salía el badge de estado, que en una lista
+// ya separada en jugados/programados no aporta nada (el estado se deduce de la sección).
+.partido-liga { font-size: var(--sv-text-xs); color: var(--sv-text-muted); white-space: nowrap; }
+
+/* --- accesos a temporadas pasadas ------------------------------------------------------- */
+.temporadas-acceso {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sv-space-2);
+  margin-top: var(--sv-space-3);
+}
+.temporadas-etiqueta {
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sv-text-muted); margin-right: 2px;
+}
+.temporada-chip {
+  font-size: var(--sv-text-sm); font-weight: 600;
+  padding: 3px var(--sv-space-2);
+  text-decoration: none; color: var(--sv-text-secondary);
+  background: var(--sv-surface-2);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-xs);
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+}
+.temporada-chip:hover {
+  background: var(--sv-surface-hover);
+  border-color: var(--sv-accent-text);
+  color: var(--sv-text-primary);
+  transform: translateY(-1px);
+}
+.temporada-chip:active { transform: translateY(0) scale(0.96); }
+
+@media (prefers-reduced-motion: reduce) {
+  .temporada-chip { transition: none; }
+  .temporada-chip:hover { transform: none; }
+}

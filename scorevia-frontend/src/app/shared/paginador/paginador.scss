@@ -1,0 +1,91 @@
+// La esquina cortada es la firma visual de la app; los botones de paginación la llevan
+// igual que las tarjetas y las tablas, para que no parezcan de otra web.
+$cut-xs: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+
+.pg {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-1);
+  margin-top: var(--sv-space-4);
+  flex-wrap: wrap;
+}
+
+// Base común de las tres formas de botón que hay aquí.
+%pg-boton {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 32px; height: 32px;
+  padding: 0 var(--sv-space-2);
+  font-family: inherit; font-size: var(--sv-text-sm); font-weight: 600;
+  color: var(--sv-text-secondary);
+  background: var(--sv-surface-2);
+  border: 1px solid var(--sv-border);
+  clip-path: $cut-xs;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--sv-surface-hover);
+    border-color: var(--sv-border-strong);
+    color: var(--sv-text-primary);
+    transform: translateY(-1px);
+  }
+  &:active:not(:disabled) { transform: translateY(0) scale(0.96); }
+
+  // El foco tiene que verse: se navega esto con teclado más de lo que parece.
+  &:focus-visible {
+    outline: 2px solid var(--sv-accent-text);
+    outline-offset: 2px;
+  }
+
+  // Deshabilitado con opacidad Y sin cursor de mano: solo el gris se confundía con
+  // "es que este botón es de otro color".
+  &:disabled { opacity: 0.35; cursor: default; }
+}
+
+.pg-flecha {
+  @extend %pg-boton;
+  font-size: var(--sv-text-lg); line-height: 1;
+  padding: 0;
+}
+
+.pg-num {
+  @extend %pg-boton;
+  font-variant-numeric: tabular-nums;
+}
+
+// La página actual va en color de marca y rellena, no solo en negrita: en una fila de
+// números, la negrita sola casi no se distingue.
+.pg-num--activa {
+  background: var(--sv-accent);
+  border-color: var(--sv-accent);
+  color: var(--sv-accent-ink);
+  cursor: default;
+
+  &:hover { background: var(--sv-accent); border-color: var(--sv-accent); color: var(--sv-accent-ink); transform: none; }
+}
+
+.pg-hueco {
+  display: inline-flex; align-items: flex-end; justify-content: center;
+  min-width: 20px; height: 32px;
+  color: var(--sv-text-muted);
+  user-select: none;
+}
+
+.pg-numeros { display: none; gap: var(--sv-space-1); }
+.pg-contador {
+  font-size: var(--sv-text-sm); font-variant-numeric: tabular-nums;
+  color: var(--sv-text-muted);
+  padding: 0 var(--sv-space-2);
+}
+
+// En móvil se deja solo flechas y contador: doce números no caben y romperían la fila.
+// A partir de tablet mandan los números y el contador sobra.
+@media (min-width: 640px) {
+  .pg-numeros { display: inline-flex; }
+  .pg-contador { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pg-flecha, .pg-num { transition: none; }
+  .pg-flecha:hover, .pg-num:hover { transform: none; }
+}

@@ -1,0 +1,28 @@
+<h1>{{ 'my_favourites' | transloco }}</h1>
+
+@if (error()) {
+  <p class="error-message">{{ error() }}</p>
+}
+
+<div class="tabs">
+  @for (tipo of tipos; track tipo) {
+    <button [class.activa]="pestanaActiva() === tipo" (click)="cambiarPestana(tipo)">{{ tipo }}</button>
+  }
+</div>
+
+<div class="tabla-scroll">
+  <table>
+    <thead><tr><th>{{ 'api_football_reference_id' | transloco }}</th><th>{{ 'added' | transloco }}</th><th></th></tr></thead>
+    <tbody>
+      @for (fav of favoritosDe(pestanaActiva()); track fav.idReferenciaApi) {
+        <tr>
+          <td class="mono">{{ fav.idReferenciaApi }}</td>
+          <td>{{ fav.fechaAgregado }}</td>
+          <td><button (click)="quitar(pestanaActiva(), fav.idReferenciaApi)">{{ 'remove' | transloco }}</button></td>
+        </tr>
+      } @empty {
+        <tr><td colspan="3">{{ 'no_favourites_yet' | transloco: { que: pestanaActiva() } }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>

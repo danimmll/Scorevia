@@ -1,0 +1,115 @@
+<h1>{{ 'compare' | transloco }}</h1>
+<p class="sub">{{ 'pick_two_teams_and_compare_their_head_to_hea' | transloco }}</p>
+<p class="aviso">{{ 'match_data_covers_2010_onwards_and_is_not_co' | transloco }}</p>
+
+@if (error()) {
+  <p class="error-message">{{ error() }}</p>
+}
+
+<div class="selectores">
+  <div class="selector">
+    @if (equipoA(); as a) {
+      <div class="equipo-elegido">
+        <img svImagen="equipo" [src]="a.logo" alt="" class="escudo">
+        <span>{{ a.nombre }}</span>
+        <button type="button" (click)="quitarA()" [title]="'change_team' | transloco">×</button>
+      </div>
+    } @else {
+      <input type="text" [placeholder]="'search_team_a_2' | transloco" [value]="busquedaA()" (input)="buscarA($any($event.target).value)" [attr.aria-label]="'search_team_a' | transloco">
+      @if (resultadosA().length > 0) {
+        <ul class="resultados" role="listbox" [attr.aria-label]="'results_for_team_a' | transloco">
+          @for (e of resultadosA(); track e.idEquipo) {
+            <li role="option" [attr.aria-selected]="false">
+              <button type="button" class="resultado-item" (click)="elegirA(e)">
+                <img svImagen="equipo" [src]="e.logo" alt="" class="escudo-mini">
+                {{ e.nombre }} <span class="pais">{{ e.pais }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </div>
+
+  <div class="vs-separador">VS</div>
+
+  <div class="selector">
+    @if (equipoB(); as b) {
+      <div class="equipo-elegido">
+        <img svImagen="equipo" [src]="b.logo" alt="" class="escudo">
+        <span>{{ b.nombre }}</span>
+        <button type="button" (click)="quitarB()" [title]="'change_team' | transloco">×</button>
+      </div>
+    } @else {
+      <input type="text" [placeholder]="'search_team_b_2' | transloco" [value]="busquedaB()" (input)="buscarB($any($event.target).value)" [attr.aria-label]="'search_team_b' | transloco">
+      @if (resultadosB().length > 0) {
+        <ul class="resultados" role="listbox" [attr.aria-label]="'results_for_team_b' | transloco">
+          @for (e of resultadosB(); track e.idEquipo) {
+            <li role="option" [attr.aria-selected]="false">
+              <button type="button" class="resultado-item" (click)="elegirB(e)">
+                <img svImagen="equipo" [src]="e.logo" alt="" class="escudo-mini">
+                {{ e.nombre }} <span class="pais">{{ e.pais }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </div>
+</div>
+
+@if (equipoA() && equipoB()) {
+  @if (cargando()) {
+    <sv-cargando />
+  } @else if (resumen(); as r) {
+    @if (r.total === 0) {
+      <p class="vacio">{{ 'no_meetings_on_record_between_these_two_team' | transloco }}</p>
+    } @else {
+      <div class="resumen-barra">
+        <div class="resumen-seg resumen-seg--a" [style.width.%]="(r.victoriasA / r.total) * 100">{{ r.victoriasA }}</div>
+        <div class="resumen-seg resumen-seg--empate" [style.width.%]="(r.empates / r.total) * 100">{{ r.empates }}</div>
+        <div class="resumen-seg resumen-seg--b" [style.width.%]="(r.victoriasB / r.total) * 100">{{ r.victoriasB }}</div>
+      </div>
+      <div class="resumen-leyenda">
+        <span><i class="dot dot--a"></i>Victorias {{ equipoA()?.nombre }}</span>
+        <span><i class="dot dot--empate"></i>{{ 'draws' | transloco }}</span>
+        <span><i class="dot dot--b"></i>Victorias {{ equipoB()?.nombre }}</span>
+      </div>
+
+      <!-- Mismas barras que la ficha de partido, para que comparar dos equipos y mirar un
+           partido concreto se lean igual. Todo se calcula del historial ya cargado. -->
+      @if (estadisticas().length > 0) {
+        <div class="stats-comparadas">
+          @for (s of estadisticas(); track s.label) {
+            <div class="stat-fila">
+              <span class="stat-valor mono">{{ valorComparativa(s.a, s.decimales) }}</span>
+              <div class="stat-barra">
+                <div class="stat-barra-a" [style.width.%]="porcentajeLadoA(s.a, s.b)"></div>
+                <div class="stat-barra-b" [style.width.%]="100 - porcentajeLadoA(s.a, s.b)"></div>
+              </div>
+              <span class="stat-valor mono">{{ valorComparativa(s.b, s.decimales) }}</span>
+              <span class="stat-label">{{ s.label }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      <h2>{{ 'history' | transloco }}</h2>
+      <ul class="lista">
+        @for (p of historialVisible(); track p.idPartido) {
+          <li class="partido-row" [routerLink]="['/partidos', p.idPartido]" [queryParams]="{local: p.idEquipoLocal, visitante: p.idEquipoVisitante}">
+            <span class="mono partido-fecha">{{ p.fecha | date:'d MMM yyyy' }}</span>
+            <span class="partido-encuentro">
+              <img svImagen="equipo" [src]="p.escudoLocal" alt="" class="escudo-mini">
+              {{ p.equipoLocal }}
+              <span class="mono resultado">{{ p.resultadoLocal }} - {{ p.resultadoVisitante }}</span>
+              {{ p.equipoVisitante }}
+              <img svImagen="equipo" [src]="p.escudoVisitante" alt="" class="escudo-mini">
+            </span>
+          </li>
+        }
+      </ul>
+        <sv-paginador [pagina]="pagina()" [totalPaginas]="totalPaginas()" (cambio)="pagina.set($event)" />
+    }
+  }
+}

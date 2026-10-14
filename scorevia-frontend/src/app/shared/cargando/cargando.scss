@@ -1,0 +1,47 @@
+.cg-simple {
+  display: flex; align-items: center; gap: var(--sv-space-2);
+  color: var(--sv-text-secondary);
+  font-size: var(--sv-text-md);
+}
+
+// Un aro que gira. Se distingue de una página colgada, que es justo lo que no hacía el
+// "Cargando..." en texto plano.
+.cg-ruedita {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 2px solid var(--sv-border-strong);
+  border-top-color: var(--sv-accent-text);
+  border-radius: 50%;
+  animation: cg-girar 0.7s linear infinite;
+}
+@keyframes cg-girar { to { transform: rotate(360deg); } }
+
+.cg-esqueleto { display: flex; flex-direction: column; gap: var(--sv-space-2); }
+
+// El brillo que recorre la barra es lo que la lee como "viene contenido" y no como "hay un
+// bloque gris roto". Se hace con un degradado que se desplaza, sin repintar nada.
+.cg-barra {
+  height: 38px;
+  border-radius: var(--sv-radius-xs);
+  background: linear-gradient(
+    90deg,
+    var(--sv-surface-2) 0%,
+    var(--sv-surface-hover) 50%,
+    var(--sv-surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: cg-brillo 1.3s ease-in-out infinite;
+}
+@keyframes cg-brillo {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// Las filas se van apagando hacia abajo: da sensación de profundidad y deja claro dónde
+// acaba lo que se está cargando.
+.cg-barra:nth-child(n+4) { opacity: 0.6; }
+.cg-barra:nth-child(n+7) { opacity: 0.35; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cg-ruedita { animation: none; border-top-color: var(--sv-border-strong); }
+  .cg-barra { animation: none; }
+}

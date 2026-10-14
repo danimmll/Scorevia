@@ -1,0 +1,51 @@
+$cut: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+$cut-sm: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+
+.vacio { color: var(--sv-text-muted); font-size: var(--sv-text-md); }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+.hero {
+  display: flex; gap: var(--sv-space-5); align-items: center;
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut; padding: var(--sv-space-6); margin-bottom: var(--sv-space-5);
+}
+/* No hay foto de árbitro en la API (llega como texto dentro del fixture), así que el
+   hueco lo ocupa el silbato en vez de una silueta genérica que insinuaría que sí la hay. */
+.silbato {
+  width: 80px; height: 80px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--sv-border); color: var(--sv-text-muted);
+  background: var(--sv-surface-2); clip-path: $cut-sm;
+}
+h1 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-2xl); margin: 0 0 var(--sv-space-2); letter-spacing: 0.3px; }
+.meta { font-size: var(--sv-text-md); color: var(--sv-text-secondary); margin: 2px 0; }
+
+.cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sv-space-3); margin-bottom: var(--sv-space-6); }
+.cifra {
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut-sm; padding: var(--sv-space-4) var(--sv-space-4);
+  display: flex; flex-direction: column; gap: var(--sv-space-1);
+}
+.cifra-valor { font-size: var(--sv-text-2xl); line-height: 1.1; }
+.cifra-valor--amarilla { color: var(--sv-amber-text); }
+.cifra-valor--roja { color: var(--sv-danger); }
+.cifra-label { font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--sv-text-muted); }
+.cifra-nota { text-transform: none; letter-spacing: 0; font-size: var(--sv-text-xs); }
+
+section h2 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-lg); letter-spacing: 0.3px; margin: 0 0 var(--sv-space-4); }
+
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.lista li {
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  padding: var(--sv-space-3) var(--sv-space-4); font-size: var(--sv-text-md);
+}
+.partido-row {
+  display: flex; align-items: center; gap: var(--sv-space-4); cursor: pointer; transition: background-color 0.15s;
+}
+.partido-row:hover { background: var(--sv-surface-hover); }
+.partido-fecha { font-size: var(--sv-text-sm); color: var(--sv-text-muted); width: 92px; flex-shrink: 0; }
+.partido-encuentro { display: flex; align-items: center; gap: var(--sv-space-2); flex: 1; min-width: 0; flex-wrap: wrap; }
+.partido-liga { font-size: var(--sv-text-sm); color: var(--sv-text-muted); text-align: right; }
+.escudo-mini { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+.resultado { font-weight: 700; }
+

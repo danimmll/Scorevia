@@ -1,0 +1,65 @@
+<h1>{{ 'players' | transloco }}</h1>
+
+@if (error()) {
+  <p class="error-message">{{ error() }}</p>
+}
+
+<div class="filtros">
+  <select [attr.aria-label]="'filter_by_country' | transloco" (change)="seleccionarPais($any($event.target).value)">
+    <option value="" [selected]="!paisSeleccionado()">{{ 'all_countries' | transloco }}</option>
+    @for (pais of paises(); track pais) {
+      <option [value]="pais" [selected]="pais === paisSeleccionado()">{{ pais }}</option>
+    }
+  </select>
+
+  @if (paisSeleccionado()) {
+    <select [attr.aria-label]="'filter_by_league' | transloco" (change)="seleccionarLiga(+$any($event.target).value)">
+      <option value="" [selected]="!ligaSeleccionada()">{{ 'all_leagues' | transloco }}</option>
+      @for (grupo of gruposLigasDelPais(); track grupo.categoria) {
+        @if (gruposLigasDelPais().length > 1) {
+          <optgroup [label]="grupo.categoria">
+            @for (liga of grupo.ligas; track liga.idLiga) {
+              <option [value]="liga.idLiga" [selected]="liga.idLiga === ligaSeleccionada()">{{ liga.nombre }}</option>
+            }
+          </optgroup>
+        } @else {
+          @for (liga of grupo.ligas; track liga.idLiga) {
+            <option [value]="liga.idLiga" [selected]="liga.idLiga === ligaSeleccionada()">{{ liga.nombre }}</option>
+          }
+        }
+      }
+    </select>
+  }
+
+  @if (ligaSeleccionada() && equiposDeLiga().length > 0) {
+    <select [attr.aria-label]="'filter_by_team' | transloco" (change)="seleccionarEquipo(+$any($event.target).value)">
+      <option value="" [selected]="!equipoSeleccionado()">{{ 'all_teams' | transloco }}</option>
+      @for (equipo of equiposDeLiga(); track equipo.idEquipo) {
+        <option [value]="equipo.idEquipo" [selected]="equipo.idEquipo === equipoSeleccionado()">{{ equipo.nombre }}</option>
+      }
+    </select>
+  }
+
+  <input type="text" [placeholder]="'search_player_by_name_2' | transloco" (input)="buscarPorNombre($any($event.target).value)" [attr.aria-label]="'search_player_by_name' | transloco">
+
+  @if (paisSeleccionado()) {
+    <button type="button" (click)="limpiarFiltro()">{{ 'clear_filter' | transloco }}</button>
+  }
+</div>
+
+<div class="jugadores-grid">
+  @for (jugador of jugadores(); track jugador.idJugador) {
+    <a [routerLink]="['/estadisticas/jugadores', jugador.idJugador]" class="jugador-card">
+      <img svImagen="jugador" [src]="jugador.foto" [alt]="jugador.nombre" class="foto">
+      <div class="jugador-nombre">{{ jugador.nombre }}</div>
+      <div class="jugador-meta">
+        @if (jugador.dorsal) { <span class="dorsal">#{{ jugador.dorsal }}</span> }
+        {{ jugador.posicion || jugador.nacionalidad }}
+      </div>
+    </a>
+  } @empty {
+    <p class="vacio">{{ 'no_players' | transloco }}</p>
+  }
+</div>
+
+<sv-paginador [pagina]="pagina()" [totalPaginas]="totalPaginas()" (cambio)="cargarPagina($event)" />

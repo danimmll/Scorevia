@@ -1,0 +1,35 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: microservicio-predicciones
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000
+            readTimeout: 5000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: "http://${EUREKA_USERNAME:eureka}:${EUREKA_PASSWORD:eureka}@eureka-server:8761/eureka/"
+    fetch-registry: true
+    register-with-eureka: true
+
+# Seguridad Interna (El mismo secret que tienes en el resto)
+incidencias:
+  internal-secret: ${INCIDENCIAS_INTERNAL_SECRET}
+
+# Origen del Frontend
+app:
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4200}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics

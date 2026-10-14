@@ -1,0 +1,93 @@
+services:
+
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    container_name: scorevia-jenkins
+    user: root
+    restart: unless-stopped
+    ports:
+      # Solo accesible desde el propio host (igual que postgres-db/eureka-server en
+      # docker-compose.yml). El webhook de GitHub ya no puede alcanzarlo directamente:
+      # el Jenkinsfile pasa a pollSCM en vez de depender de ese webhook.
+      - "127.0.0.1:8083:8080"
+    # Jenkins pasa la mayor parte del dia sin hacer nada, pero su JVM no lo sabe: sin tope
+    # dimensiona el heap contra la RAM de la VM entera y se queda con ella.
+    mem_limit: 768m
+    environment:
+      JAVA_OPTS: -Djenkins.install.runSetupWizard=false -XX:MaxRAMPercentage=70
+    volumes:
+      - scorevia-backend_jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+
+  jenkins-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins-agent
+    container_name: scorevia-jenkins-agent
+    user: root
+    restart: unless-stopped
+    depends_on:
+      - jenkins
+    mem_limit: 512m
+    environment:
+      JENKINS_URL: http://scorevia-jenkins:8080
+      JENKINS_AGENT_NAME: docker-agent
+      JENKINS_SECRET: ${JENKINS_AGENT_SECRET}
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+
+  sonarqube:
+    image: sonarqube:latest
+    container_name: scorevia-sonarqube
+    restart: unless-stopped
+    ports:
+      # Solo accesible desde el propio host: nadie fuera necesita pegarle directamente,
+      # solo Jenkins (mismo docker network "backend") y tú por SSH tunnel si hace falta.
+      - "127.0.0.1:9000:9000"
+    # SonarQube son DOS JVM (el servidor web y el Elasticsearch que indexa) y de serie cada
+    # una se dimensiona sola: es, de largo, lo que mas RAM se lleva de todo el proyecto y por
+    # lo que hay que pararlo a mano para poder trabajar. Con los topes puestos cabe encendido.
+    mem_limit: 2g
+    environment:
+      SONAR_WEB_JAVAOPTS: -Xmx512m -Xms128m
+      SONAR_CE_JAVAOPTS: -Xmx512m -Xms128m
+      SONAR_SEARCH_JAVAOPTS: -Xmx512m -Xms512m
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+      SONAR_JDBC_URL: jdbc:postgresql://postgres-db:5432/sonarqube
+      SONAR_JDBC_USERNAME: scorevia_sonarqube
+      SONAR_JDBC_PASSWORD: ${SONARQUBE_DB_PASS}
+    volumes:
+      - scorevia-backend_sonarqube_data:/opt/sonarqube/data
+      - scorevia-backend_sonarqube_logs:/opt/sonarqube/logs
+      - scorevia-backend_sonarqube_extensions:/opt/sonarqube/extensions
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true
+    name: scorevia_backend
+
+volumes:
+  scorevia-backend_jenkins_data:
+    external: true
+    name: futbol-stats-backend_jenkins_data
+
+  scorevia-backend_sonarqube_data:
+    external: true
+    name: futbol-stats-backend_sonarqube_data
+
+  scorevia-backend_sonarqube_logs:
+    external: true
+    name: futbol-stats-backend_sonarqube_logs
+
+  scorevia-backend_sonarqube_extensions:
+    external: true
+    name: futbol-stats-backend_sonarqube_extensions

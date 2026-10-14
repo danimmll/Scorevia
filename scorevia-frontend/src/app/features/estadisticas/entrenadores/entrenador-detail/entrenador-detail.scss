@@ -1,0 +1,61 @@
+$cut: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+$cut-sm: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+
+.vacio { color: var(--sv-text-muted); font-size: var(--sv-text-md); }
+
+.hero {
+  display: flex; gap: var(--sv-space-5); align-items: center;
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut; padding: var(--sv-space-6); margin-bottom: var(--sv-space-6);
+}
+.foto { width: 96px; height: 96px; object-fit: cover; flex-shrink: 0; clip-path: $cut-sm; background: var(--sv-surface-2); }
+
+h1 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-2xl); margin: 0 0 var(--sv-space-2); letter-spacing: 0.3px; }
+.meta { font-size: var(--sv-text-md); color: var(--sv-text-secondary); margin: 2px 0; }
+.equipo-actual-link {
+  display: flex; align-items: center; gap: var(--sv-space-2); width: fit-content;
+  font-size: var(--sv-text-md); color: var(--sv-text-primary); text-decoration: none; margin-top: var(--sv-space-1);
+}
+.equipo-actual-link:hover { color: var(--sv-accent-text); }
+.escudo-mini { width: 16px; height: 16px; object-fit: contain; }
+
+section { margin-bottom: var(--sv-space-6); }
+section h2 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-lg); letter-spacing: 0.3px; margin: 0 0 var(--sv-space-4); }
+
+.lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.lista li {
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  padding: var(--sv-space-3) var(--sv-space-4); font-size: var(--sv-text-md); font-weight: 600;
+}
+.club-row { display: flex; align-items: center; gap: var(--sv-space-3); cursor: pointer; transition: background-color 0.15s; }
+.club-row:hover { background: var(--sv-surface-hover); }
+.club-row .lista-titulo { flex: 1; font-weight: 600; }
+.lista-sub { font-size: var(--sv-text-sm); color: var(--sv-text-secondary); font-weight: 500; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+.trofeos-grid { display: grid; grid-template-columns: 1fr; gap: var(--sv-space-3); }
+@media (min-width: 640px) { .trofeos-grid { grid-template-columns: 1fr 1fr; } }
+
+.trofeo-card {
+  display: flex; align-items: center; gap: var(--sv-space-4);
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut-sm; padding: var(--sv-space-4) var(--sv-space-4);
+}
+.trofeo-icono { color: var(--sv-amber-text); flex-shrink: 0; }
+.trofeo-competicion { font-size: var(--sv-text-md); font-weight: 600; }
+.trofeo-contador { font-family: 'JetBrains Mono', monospace; color: var(--sv-amber-text); margin-left: var(--sv-space-1); }
+.trofeo-meta { font-size: var(--sv-text-sm); color: var(--sv-text-secondary); margin-top: 2px; }
+
+.subtitulo-palmares {
+  font-size: var(--sv-text-sm); text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sv-text-muted); margin: var(--sv-space-5) 0 var(--sv-space-2);
+}
+
+/* La explicación de por qué un hueco está vacío: más pequeña y apagada que el "no hay nada",
+   porque es una nota al pie, no el mensaje. Mismo tratamiento que en el detalle de partido. */
+.nota-cobertura {
+  display: block;
+  margin-top: var(--sv-space-1);
+  font-size: var(--sv-text-xs);
+  color: var(--sv-text-muted);
+}

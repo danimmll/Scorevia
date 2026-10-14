@@ -1,0 +1,288 @@
+logging:
+  file:
+    name: /logs/estadisticas.log
+  level:
+    root: INFO
+    # El nivel del propio paquete, por variable y con INFO por defecto (igual que el
+    # Gateway). Estaba en DEBUG a fuego: con el LoggingAspect trazando cada metodo, eso
+    # convertia el log en 16 GB diarios en un servicio que no atendia a nadie. Para volver
+    # a verlo todo: ESTADISTICAS_LOG_LEVEL=DEBUG.
+    '[estadisticas]': "${ESTADISTICAS_LOG_LEVEL:INFO}"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+      file-name-pattern: /logs/estadisticas-%d{yyyy-MM-dd}.%i.log
+
+server:
+  port: 8082
+
+api:
+  football:
+    key: ${API_FOOTBALL_KEY}
+    base-url: https://v3.football.api-sports.io
+    # Dos niveles de colchón sobre las 150.000 peticiones/día del plan Mega:
+    #
+    #  - reserva-diaria: lo que NUNCA gastan los jobs de backfill/mantenimiento
+    #    (perfiles pendientes, entidades secundarias, eventos históricos...). Queda
+    #    libre para los fixtures del día, los partidos en vivo y para poder lanzar a
+    #    mano un rellenado sin quedarse sin nada.
+    #
+    #  - reserva-intocable: suelo duro. Por debajo de esto no se gasta NADA, ni
+    #    siquiera la ingesta en vivo. Es el margen para diagnosticar o cubrir un pico
+    #    imprevisto sin que el día se haya quedado ya a cero.
+    reserva-diaria: ${API_FOOTBALL_RESERVA_DIARIA:25000}
+    reserva-intocable: ${API_FOOTBALL_RESERVA_INTOCABLE:5000}
+
+    # Cuántas lecturas puede tener un relleno en el aire a la vez. Lo que hacía lentos los
+    # rellenos no era la cuota: cada llamada tarda unos 330 ms de ida y vuelta y salían de una
+    # en una, o sea 3 por segundo con el limitador permitiendo 10. Ver PeticionesEnParalelo.
+    # A 1 se vuelve al comportamiento de antes, de una en una, sin tocar nada más.
+    hilos-lectura: ${API_FOOTBALL_HILOS_LECTURA:8}
+
+    # Cada cuánto se vuelve a bajar el timeline de un partido en directo aunque no se haya
+    # movido el marcador. Es lo que recoge tarjetas, cambios y VAR, que no son urgentes (un
+    # gol o un cambio de fase bajan el timeline al instante, sin esperar a esto).
+    #
+    # A partir de umbral-partidos-vivo el intervalo se estira en proporción al número de
+    # partidos simultáneos, porque el gasto de este refresco es partidos/intervalo peticiones
+    # por segundo: sin estirarlo, una tarde con 1.500 partidos a la vez son 5 pet/s y una de
+    # 3.000 se comería el limitador entero. Con el estirado, el techo es 1 pet/s haya los que
+    # haya.
+    refresco-eventos-segundos: ${API_FOOTBALL_REFRESCO_EVENTOS:300}
+    umbral-partidos-vivo: ${API_FOOTBALL_UMBRAL_PARTIDOS_VIVO:300}
+
+spring:
+  application:
+    name: microservicio-estadisticas
+
+  task:
+    scheduling:
+      pool:
+        # Spring ejecuta TODAS las @Scheduled en un único hilo si no se dice lo contrario, y
+        # aquí hay trabajos de duraciones muy distintas compartiendo scheduler: el directo va
+        # cada 10 segundos, pero la recogida diaria puede tirarse varios minutos (1.500
+        # partidos a 3 peticiones cada uno) y el refresco de clasificaciones otro tanto. Con
+        # un solo hilo, esos dos dejarían el directo congelado mientras corren.
+        #
+        # Cuatro hilos: los trabajos programados, sabiendo que los pesados (las plantillas, la
+        # recogida, el calendario y las clasificaciones) corren de madrugada escalonados
+        # (3:20, 4:30, 5:10, 5:40) y no coinciden entre sí.
+        size: ${SCHEDULER_POOL_SIZE:4}
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 3000
+            readTimeout: 3000
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 30000
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      "[jakarta.persistence.validation.mode]": none
+      hibernate:
+        default_schema: sch_estadisticas
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: "http://${EUREKA_USERNAME:eureka}:${EUREKA_PASSWORD:eureka}@eureka-server:8761/eureka/"
+    healthcheck:
+      enabled: false
+  instance:
+    prefer-ip-address: true # FIX: Clave para Docker
+
+incidencias:
+  internal-secret: ${INCIDENCIAS_INTERNAL_SECRET}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs/estadisticas
+
+app:
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4200}
+
+scorevia:
+  temporada-actual: 2026
+  ingesta:
+    vivo:
+      # Live scoring. Un tick cuesta 1 petición: la lista entera de partidos en directo, que
+      # desde el 2026-09-05 trae también el timeline de cada uno, así que ya no hay peticiones
+      # por partido -- ver IngestaScheduler y PartidoIngestServiceImpl.
+      #
+      # 30s (2 peticiones/minuto) y no 10s: la documentación de API-Football recomienda una
+      # llamada por minuto para el directo y avisa de que un tráfico anómalo puede acabar en
+      # un bloqueo del firewall, temporal o permanente. A 10s íbamos a 6 veces esa
+      # recomendación. Con 30s un gol tarda como mucho medio minuto en aparecer.
+      habilitada: ${INGESTA_VIVO_HABILITADA:false}
+      cadencia-ms: ${INGESTA_VIVO_CADENCIA_MS:30000}
+
+    # Estadísticas de equipo y de jugadores en cuanto el partido termina (y con ellas las
+    # alineaciones, que se deducen de las stats de jugador). El partido entra en cola al
+    # cambiar a FT/AET/PEN y se pide unos minutos después, que es lo que tarda API-Football
+    # en publicarlas. Ver ColaPostPartido.
+    #
+    # Peor caso pensado: un día con 3.000 partidos. Cada uno cuesta 3 peticiones (stats de
+    # equipo, stats de jugador y una última pasada del timeline, que recoge las correcciones
+    # de después del pitido), o sea 9.000 al día sobre una cuota de 150.000. Y aunque
+    # terminaran todos a la vez, la cola los reparte a 40 por ronda de 30 segundos.
+    #
+    # OJO: apagado por defecto, como el directo. Mientras siga en marcha el rellenado a mano
+    # (que es donde hace falta hasta la última petición del día), un scheduler encendido solo
+    # resta cuota. Se enciende cuando el rellenado esté al día, poniendo la variable a true.
+    post-partido:
+      habilitada: ${INGESTA_POST_PARTIDO_HABILITADA:false}
+      cadencia-ms: ${INGESTA_POST_PARTIDO_CADENCIA_MS:30000}
+      retardo-inicial-segundos: ${INGESTA_POST_PARTIDO_RETARDO:300}
+      espera-reintento-segundos: ${INGESTA_POST_PARTIDO_REINTENTO:600}
+      max-intentos: ${INGESTA_POST_PARTIDO_MAX_INTENTOS:3}
+      max-por-ronda: ${INGESTA_POST_PARTIDO_MAX_POR_RONDA:40}
+      cola-maxima: ${INGESTA_POST_PARTIDO_COLA_MAXIMA:5000}
+
+    # Red de seguridad diaria: la cola de arriba vive en memoria, así que un reinicio a media
+    # tarde se llevaría por delante los partidos pendientes. Esto los repesca. Solo mira una
+    # ventana reciente y salta las competiciones sin cobertura, para no arrastrar el atraso
+    # histórico entero (que sigue siendo cosa de scripts/backfill_stats_equipo_jugador.py).
+    recogida:
+      habilitada: ${INGESTA_RECOGIDA_HABILITADA:false}
+      cron: ${INGESTA_RECOGIDA_CRON:0 10 5 * * *}
+      horas: ${INGESTA_RECOGIDA_HORAS:30}
+      max-partidos: ${INGESTA_RECOGIDA_MAX_PARTIDOS:1500}
+
+    # Quién está hoy en cada club de las 22 competiciones destacadas. ~400 peticiones (el
+    # 0,3% de la cuota diaria), frente a las 11.508 de la pasada completa -- que por ese
+    # precio no se lanzaba nunca, y era justo por lo que el dato se pudría: el 2026-09-08 el
+    # Real Madrid figuraba con 45 jugadores y Kroos entre ellos, retirado hacía dos años.
+    #
+    # max-horas es lo que hace que la marca de "ya sincronizado" caduque. Con 0 solo se miran
+    # los equipos que no se han pedido NUNCA, que es lo que congelaba las plantillas.
+    plantillas:
+      habilitada: ${INGESTA_PLANTILLAS_HABILITADA:false}
+      cron: ${INGESTA_PLANTILLAS_CRON:0 20 3 * * *}
+      max-horas: ${INGESTA_PLANTILLAS_MAX_HORAS:20}
+
+    # Agenda de los próximos días. Una petición por fecha; sin esto un partido no existe en
+    # la base hasta que empieza a jugarse, porque el feed en vivo solo ve los que ya han
+    # empezado.
+    calendario:
+      habilitada: ${INGESTA_CALENDARIO_HABILITADA:false}
+      cron: ${INGESTA_CALENDARIO_CRON:0 30 4 * * *}
+      dias: ${INGESTA_CALENDARIO_DIAS:3}
+
+    # Tabla de posiciones de las competiciones donde se ha jugado algo (las demás no pueden
+    # haber cambiado). Dos pasadas: la de las 22:40 UTC deja al día la jornada de tarde y la
+    # de las 5:40 recoge lo que se juega de noche en América. Un sábado cargado son ~330
+    # peticiones; un martes, ocho.
+    clasificaciones:
+      habilitada: ${INGESTA_CLASIFICACIONES_HABILITADA:false}
+      cron: ${INGESTA_CLASIFICACIONES_CRON:0 40 5,22 * * *}
+      horas: ${INGESTA_CLASIFICACIONES_HORAS:24}
+
+    # Repaso de mediodía a lo de ayer y lo de hoy. Los otros cuatro trabajos hacen su parte
+    # mientras todo va bien; este existe para cuando no: un despliegue en mitad de la jornada,
+    # un rato sin cuota, o la API que deja de devolver un partido antes de darlo por terminado.
+    # Todo eso deja el mismo rastro (partidos acabados sin timeline y sin estadísticas) y nada
+    # los volvía a mirar. Cuesta 2 peticiones por las dos fechas más lo que haya que completar,
+    # que va de veinte en veinte por /fixtures?ids=.
+    reconciliacion:
+      habilitada: ${INGESTA_RECONCILIACION_HABILITADA:false}
+      cron: ${INGESTA_RECONCILIACION_CRON:0 0 12 * * *}
+      horas-colgado: ${INGESTA_RECONCILIACION_HORAS_COLGADO:6}
+      max-partidos: ${INGESTA_RECONCILIACION_MAX_PARTIDOS:600}
+
+    # Lo que la reconciliación no puede arreglar: los días en los que el servicio no
+    # estaba encendido. Un cron que no dispara no deja rastro, y al día siguiente la
+    # ventana de mediodía (ayer y hoy) ya ha pasado de largo, así que esa jornada se queda
+    # rota para siempre: partidos jugados que la web sigue enseñando como PROGRAMADO.
+    # Medido el 2026-09-10 con los siete trabajos encendidos: 233 de los 336 partidos del
+    # día anterior, sin resultado, por una noche con el equipo apagado.
+    #
+    # Arranca dos minutos después de levantar (deja sitio al arranque, que ya compite por
+    # CPU con otras cinco JVM) y se repite cada seis horas. Cuesta UNA petición por día
+    # roto -fixtures?date= trae la jornada entera- y cero si no hay ninguno.
+    puesta-al-dia:
+      habilitada: ${INGESTA_PUESTA_AL_DIA_HABILITADA:false}
+      retardo-ms: ${INGESTA_PUESTA_AL_DIA_RETARDO_MS:120000}
+      cadencia-ms: ${INGESTA_PUESTA_AL_DIA_CADENCIA_MS:21600000}
+      dias: ${INGESTA_PUESTA_AL_DIA_DIAS:7}
+      max-fechas: ${INGESTA_PUESTA_AL_DIA_MAX_FECHAS:7}
+      # Y las tablas de posiciones de lo que se jugó esos días: el refresco normal solo
+      # mira las últimas 24 h, así que una jornada sin disparar deja la tabla mal hasta
+      # que esa competición vuelva a jugar. 500 cubren de una vez todas las que juegan en
+      # una semana (medido: 497) y son el 0,3 % de la cuota diaria.
+      max-tablas: ${INGESTA_PUESTA_AL_DIA_MAX_TABLAS:500}
+
+resilience4j:
+  ratelimiter:
+    instances:
+      apiFootballRateLimiter:
+        # El plan Mega da 900 peticiones por minuto = 15 por segundo.
+        #
+        # Estuvo en 14 (una de colchon) y no era suficiente: 14/s son 840/min sostenidos, y
+        # por encima corren ademas el directo, las alineaciones y los reintentos, asi que el
+        # conjunto se pasaba de 900. El 2026-09-09 la sincronizacion de plantillas se comio
+        # decenas de "rateLimit: Too many requests" -- que la API devuelve con HTTP 200 y
+        # "response": [], o sea disfrazados de "este equipo no tiene plantilla". Con 12/s son
+        # 720/min y quedan 180 de margen para todo lo demas.
+        #
+        # El limitador es solo la primera linea: ApiFootballClient ademas reconoce la queja y
+        # espera a que corra la ventana en vez de reintentar contra la misma pared.
+        limitForPeriod: 12
+        limitRefreshPeriod: 1s
+        # 5s no bastaban con varias lecturas a la vez: la que llegaba la ultima al limitador se
+        # quedaba esperando su turno mas de ese tiempo y moria con un fallo que no era suyo.
+        timeoutDuration: 30s
+  circuitbreaker:
+    instances:
+      apiFootballCircuitBreaker:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        # Tiene que ser MAYOR que el timeoutDuration del limitador de arriba, y aqui esta el
+        # porque: el cortacircuitos envuelve al limitador (ese es el orden de los aspectos de
+        # resilience4j), asi que el tiempo que una peticion pasa esperando su turno cuenta como
+        # tiempo de llamada. Con 10s y varias lecturas a la vez, esperar el turno se leia como
+        # "la API va lenta" y el circuito se abria estando la API perfectamente: el 2026-09-08
+        # tumbo una recogida entera, 1.693 partidos saltados de golpe con la API respondiendo
+        # bien. Una llamada que de verdad se cuelga no llega aqui: el timeout de lectura son
+        # 15s y cae como fallo, que es lo que si debe abrir el circuito.
+        slow-call-duration-threshold: 40s
+        wait-duration-in-open-state: 15s
+        # Quedarse sin turno en NUESTRO limitador no es un fallo de API-Football, y contarlo
+        # como tal abria el circuito con la API respondiendo bien (dos recogidas cortadas el
+        # 2026-09-08, 1.315 partidos sin estadisticas que la API tenia listas). El circuito
+        # esta para dejar de insistir cuando el proveedor se cae, no para castigarnos por
+        # haber puesto un freno nosotros mismos.
+        ignore-exceptions:
+          - estadisticas.exception.LimiteDePeticionesPropioException
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics

@@ -1,0 +1,211 @@
+logging:
+  file:
+    name: /logs/api-gateway.log
+  level:
+    root: INFO
+    '[gateway]': "${GATEWAY_LOG_LEVEL:INFO}"
+    "[org.springframework.cloud.gateway]": "${GATEWAY_LOG_LEVEL:INFO}"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+      file-name-pattern: /logs/api-gateway-%d{yyyy-MM-dd}-%i.log
+
+server:
+  port: 8085
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 3000
+            response-timeout: 20s
+
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                # Los origenes permitidos, en una sola variable separada por comas.
+                #
+                # ANTES los dos localhost estaban escritos a fuego en esta lista, asi que
+                # seguian permitidos TAMBIEN en produccion, y con allowCredentials: true. Eso
+                # significa que cualquier pagina servida desde el localhost:4200 de un visitante
+                # podia hablar con la API de produccion llevandose sus cookies. Es un riesgo
+                # pequeno (hace falta algo corriendo en la maquina de la victima) pero
+                # completamente gratuito de quitar, porque en produccion no hace ninguna falta:
+                # desde que el frontend se sirve por Caddy bajo el mismo dominio, el navegador
+                # ni siquiera hace peticiones entre origenes distintos.
+                #
+                # El valor por defecto es el de desarrollo -- "ng serve" en el 4200 y el
+                # contenedor SSR en el 4000 --, asi que en local no hay que configurar nada. En
+                # produccion, docker-compose.prod.yml lo fija al dominio y punto.
+                allowedOrigins: "${CORS_ORIGINS:http://localhost:4200,http://localhost:4000}"
+                allowCredentials: true
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders: "*"
+
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+
+          discovery:
+            locator:
+              enabled: false
+
+          routes:
+            # Todas las rutas de negocio (no infraestructura -- /actuator y /v3/api-docs
+            # quedan fuera) viven bajo /api/v1/**, un único namespace consistente en vez
+            # de la mezcla de antes (algunas rutas sueltas como /auth o /partidos, otras ya
+            # con /api/...). El /v1 explícito dejar sitio a un v2 el
+            # día que haga falta romper compatibilidad, sin tener que re-versionar todo de
+            # golpe entonces.
+            - id: modulo-seguridad
+              uri: lb://MICROSERVICIO-USUARIOS-ROLES
+              predicates:
+                - Path=/api/v1/auth/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: moduloSeguridadCB
+                    fallbackUri: forward:/fallback
+
+            - id: modulo-usuarios
+              uri: lb://MICROSERVICIO-USUARIOS-ROLES
+              predicates:
+                - Path=/api/v1/usuarios/**,/api/v1/roles/**,/api/v1/usuarios-roles/**,/v3/api-docs/usuarios/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: moduloUsuariosCB
+                    fallbackUri: forward:/fallback
+
+            - id: modulo-incidencias-lectura
+              uri: lb://MICROSERVICIO-INCIDENCIAS
+              predicates:
+                # POST /api/v1/incidencias es un canal exclusivamente interno (microservicio a
+                # microservicio, vía Feign con X-Internal-Secret) para reportar errores;
+                # nunca debe ser alcanzable desde fuera del clúster. El Gateway relaya la
+                # cabecera secreta en toda petición saliente (InternalSecretRelayFilter),
+                # así que sin este bloqueo por método un cliente externo podría hacer
+                # POST /api/v1/incidencias a través del Gateway y colarse como si fuera
+                # tráfico interno legítimo.
+                - Path=/api/v1/incidencias/**,/v3/api-docs/incidencias/**
+                - Method=GET,OPTIONS
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: moduloIncidenciasCB
+                    fallbackUri: forward:/fallback
+
+            - id: modulo-reportes
+              uri: lb://MICROSERVICIO-INCIDENCIAS
+              predicates:
+                - Path=/api/v1/reportes/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: moduloIncidenciasCB
+                    fallbackUri: forward:/fallback
+
+            # Ingesta manual (SyncController): TODOS los POST a /api/v1/partidos/** son
+            # operaciones de sincronización de admin -- PartidoController solo expone GETs.
+            #
+            # Va en ruta aparte y ANTES que modulo-estadisticas (Spring Cloud Gateway casa
+            # las rutas en orden de declaración) por dos motivos:
+            #
+            #   1. Sin CircuitBreaker. Su timelimiter de 15s mataba la petición mucho antes
+            #      de que terminara: sincronizar un sábado son 700+ partidos y tarda minutos.
+            #      Y lo peor no era el corte: cada timeout contaba como fallo, el circuito se
+            #      abría, y a partir de ahí TODA petición a estadísticas -- incluidas las de
+            #      los usuarios navegando -- respondía 503 desde /fallback. Un backfill
+            #      tumbaba la web entera. Pasó el 2026-09-04 con la fecha 2026-08-22.
+            #   2. response-timeout propio de 10 minutos, porque el global son 20s.
+            #
+            # Sigue exigiendo ROLE_ADMIN: quien valida es el microservicio (@PreAuthorize),
+            # el Gateway solo enruta. Quitar el circuit breaker no abre nada.
+            - id: modulo-estadisticas-sync
+              uri: lb://MICROSERVICIO-ESTADISTICAS
+              predicates:
+                - Path=/api/v1/partidos/**
+                - Method=POST
+              metadata:
+                response-timeout: 600000
+                connect-timeout: 5000
+
+            - id: modulo-estadisticas
+              uri: lb://MICROSERVICIO-ESTADISTICAS
+              predicates:
+                - Path=/api/v1/partidos/**,/api/v1/ligas/**,/api/v1/equipos/**,/api/v1/jugadores/**,/api/v1/entrenadores/**,/api/v1/arbitros/**,/api/v1/clasificaciones/**,/v3/api-docs/estadisticas/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: moduloEstadisticasCB
+                    fallbackUri: forward:/fallback
+
+            - id: modulo-predicciones
+              uri: lb://MICROSERVICIO-PREDICCIONES
+              predicates:
+                - Path=/api/v1/predicciones/**,/v3/api-docs/predicciones/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: moduloPrediccionesCB
+                    fallbackUri: forward:/fallback
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: "http://${EUREKA_USERNAME:eureka}:${EUREKA_PASSWORD:eureka}@eureka-server:8761/eureka/"
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+
+incidencias:
+  internal-secret: ${INCIDENCIAS_INTERNAL_SECRET}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 15s
+        cancel-running-future: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: Usuarios y Roles
+        url: /v3/api-docs/usuarios
+      - name: Incidencias
+        url: /v3/api-docs/incidencias
+      - name: Estadisticas
+        url: /v3/api-docs/estadisticas
+      - name: Predicciones
+        url: /v3/api-docs/predicciones

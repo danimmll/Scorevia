@@ -1,0 +1,37 @@
+$cut-sm: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+
+h1 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-2xl); letter-spacing: 0.3px; margin-bottom: var(--sv-space-4); }
+.vacio { color: var(--sv-text-muted); font-size: var(--sv-text-md); }
+
+.filtros { display: flex; gap: var(--sv-space-3); flex-wrap: wrap; align-items: center; margin-bottom: var(--sv-space-5); }
+.filtros select, .filtros input {
+  background: var(--sv-surface); border: 1px solid var(--sv-border); color: var(--sv-text-primary);
+  padding: var(--sv-space-2) var(--sv-space-3); font-size: var(--sv-text-md); font-family: inherit;
+}
+.filtros select:focus, .filtros input:focus { outline: none; border-color: var(--sv-accent); }
+.filtros input { width: 200px; }
+
+.equipos-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sv-space-3); }
+@media (min-width: 640px) { .equipos-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) { .equipos-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.equipo-card {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--sv-space-2);
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut-sm; padding: var(--sv-space-5) var(--sv-space-4);
+  text-decoration: none; color: inherit;
+  transition: background-color 0.15s;
+}
+.equipo-card:hover { background: var(--sv-surface-hover); }
+
+.escudo { width: 44px; height: 44px; object-fit: contain; margin-bottom: var(--sv-space-1); }
+.equipo-nombre { font-size: var(--sv-text-md); font-weight: 600; }
+.equipo-meta { font-size: var(--sv-text-sm); color: var(--sv-text-secondary); }
+.equipo-estadio { font-size: var(--sv-text-xs); color: var(--sv-text-muted); }
+
+.btn-favorito {
+  position: absolute; top: 8px; right: 8px;
+  background: none; border: none; cursor: pointer;
+  font-size: 1.1rem; line-height: 1; color: var(--sv-amber-text);
+}

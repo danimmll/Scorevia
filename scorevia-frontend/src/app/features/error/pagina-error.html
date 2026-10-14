@@ -1,0 +1,90 @@
+<!-- role="alert" para que un lector de pantalla lo anuncie al llegar: si no, alguien que
+     navega a ciegas se queda esperando una página que nunca describe qué ha pasado.
+
+     Y SIN aria-label: `role="alert"` anuncia el contenido del bloque, que es justo lo que
+     interesa (código, titular, mensaje y dirección). Un aria-label lo habría SUSTITUIDO por
+     una sola frase, escondiendo el detalle. Además se calculaba con un getter que traducía
+     al vuelo, y eso daba un ExpressionChangedAfterItHasBeenChecked en cuanto el catálogo de
+     idioma terminaba de cargar. -->
+<section class="error-pagina" role="alert">
+
+  <!-- El balón que se sale del campo. Es SVG y no un GIF por dos razones: pesa 2 KB en vez
+       de 200, y se puede parar entero con prefers-reduced-motion (ver el .scss). -->
+  <div class="error-escena" aria-hidden="true">
+    <svg viewBox="0 0 240 150" class="error-svg">
+      <!-- Portería -->
+      <g class="porteria">
+        <path d="M60 110 V50 H180 V110" fill="none" stroke="currentColor" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M60 50 L75 62 H165 L180 50 M75 62 V110 M165 62 V110"
+              fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.45"/>
+        <!-- Red -->
+        <g opacity="0.25" stroke="currentColor" stroke-width="0.8">
+          <path d="M85 62 V110 M105 62 V110 M125 62 V110 M145 62 V110"/>
+          <path d="M75 74 H165 M75 86 H165 M75 98 H165"/>
+        </g>
+      </g>
+
+      <!-- Suelo -->
+      <line x1="10" y1="110" x2="230" y2="110" stroke="currentColor" stroke-width="2"
+            opacity="0.35" stroke-linecap="round"/>
+
+      <!-- El balón: sale disparado, rebota en el larguero y se va fuera. -->
+      <g class="error-balon">
+        <circle cx="0" cy="0" r="9" fill="currentColor" opacity="0.9"/>
+        <path d="M0 -9 L4 -3 L0 2 L-4 -3 Z" fill="var(--sv-bg)" opacity="0.8"/>
+      </g>
+    </svg>
+  </div>
+
+  <p class="error-codigo mono">{{ codigo() }}</p>
+
+  <h1>
+    @if (esNoEncontrada()) {
+      {{ 'error_page_not_found_title' | transloco }}
+    } @else {
+      {{ 'error_page_generic_title' | transloco }}
+    }
+  </h1>
+
+  <!-- El error de verdad. Es lo único que distingue esta página de un cartel decorativo. -->
+  @if (mensaje()) {
+    <p class="error-mensaje">{{ mensaje() }}</p>
+  } @else {
+    <p class="error-mensaje">{{ 'error_page_not_found_body' | transloco }}</p>
+  }
+
+  @if (rutaIntentada()) {
+    <p class="error-ruta">
+      <span class="error-ruta-etiqueta">{{ 'error_page_you_asked_for' | transloco }}</span>
+      <code class="mono">{{ rutaIntentada() }}</code>
+    </p>
+  }
+
+  @if (detalle()) {
+    <details class="error-detalle">
+      <summary>{{ 'error_page_technical_detail' | transloco }}</summary>
+      <pre class="mono">{{ detalle() }}</pre>
+    </details>
+  }
+
+  <div class="error-acciones">
+    <a routerLink="/partidos" class="error-btn error-btn--primario" (click)="cancelarRedireccion()">
+      {{ 'error_page_go_home' | transloco }}
+    </a>
+    <button type="button" class="error-btn" (click)="volver()">
+      {{ 'error_page_go_back' | transloco }}
+    </button>
+  </div>
+
+  @if (cuentaAtrasActiva()) {
+    <!-- aria-live="off": el contador cambia cada segundo y un lector de pantalla lo estaría
+         leyendo en bucle, tapando todo lo demás. -->
+    <p class="error-cuenta" aria-live="off">
+      {{ 'error_page_redirecting_in' | transloco: { n: restantes() } }}
+      <button type="button" class="error-cancelar" (click)="cancelarRedireccion()">
+        {{ 'error_page_stay_here' | transloco }}
+      </button>
+    </p>
+  }
+</section>

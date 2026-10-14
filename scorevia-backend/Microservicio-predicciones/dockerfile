@@ -1,0 +1,8 @@
+FROM eclipse-temurin:21-jre-alpine
+# curl para el HEALTHCHECK de docker-compose: la imagen alpine no lo trae por defecto (a
+# diferencia de la variante no-alpine que ya usan otros servicios de este repo).
+RUN apk add --no-cache curl
+VOLUME /tmp
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} app.jar
+ENTRYPOINT ["java","-jar","/app.jar"]

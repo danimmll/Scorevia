@@ -1,0 +1,98 @@
+$cut-sm: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+
+h1 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-2xl); letter-spacing: 0.3px; margin-bottom: var(--sv-space-4); }
+h2 { font-family: 'Anton', 'Archivo', sans-serif; font-size: var(--sv-text-lg); letter-spacing: 0.3px; margin: var(--sv-space-6) 0 var(--sv-space-3); color: var(--sv-text-secondary); }
+h2.seccion-secundaria { margin-top: var(--sv-space-6); padding-top: var(--sv-space-5); border-top: 1px solid var(--sv-border); }
+.competicion-header {
+  font-size: var(--sv-text-sm); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sv-text-muted); margin: var(--sv-space-5) 0 var(--sv-space-2);
+  display: flex; align-items: center; gap: var(--sv-space-2);
+}
+.competicion-header:first-of-type { margin-top: 0; }
+.competicion-logo { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+// Rectángulo con esquina redonda y no círculo: recortada en redondo, una bandera pierde
+// justo la franja que la distingue de las demás.
+.competicion-bandera {
+  width: 20px; height: 14px; object-fit: cover; flex-shrink: 0;
+  border-radius: 2px; border: 1px solid var(--sv-border);
+}
+.competicion-pais { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--sv-text-muted); opacity: 0.75; }
+// El número de partidos va al final, separado: sirve para hacerse una idea del tamaño
+// de la jornada sin contar filas.
+.competicion-cuenta { margin-left: auto; font-weight: 600; opacity: 0.7; }
+.vacio { color: var(--sv-text-muted); text-align: center; padding: var(--sv-space-6) 0 !important; }
+
+.filtros { display: flex; gap: var(--sv-space-3); flex-wrap: wrap; align-items: center; margin-bottom: var(--sv-space-5); }
+.filtros select {
+  background: var(--sv-surface); border: 1px solid var(--sv-border); color: var(--sv-text-primary);
+  padding: var(--sv-space-2) var(--sv-space-3); font-size: var(--sv-text-md); font-family: inherit;
+}
+.filtros select:focus { outline: none; border-color: var(--sv-accent); }
+.filtros button {
+  background: var(--sv-surface-2); border: 1px solid var(--sv-border); color: var(--sv-text-primary);
+  padding: var(--sv-space-2) var(--sv-space-4); cursor: pointer; font-family: inherit; font-size: var(--sv-text-md);
+}
+
+.tabla-wrap {
+  background: var(--sv-surface); border: 1px solid var(--sv-border);
+  clip-path: $cut-sm; overflow-x: auto;
+}
+.tabla-wrap--vivo { border-color: var(--sv-danger); }
+
+table { min-width: 560px; }
+th {
+  text-align: left; padding: var(--sv-space-3) var(--sv-space-3); font-size: var(--sv-text-xs); text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--sv-text-muted); border-bottom: 1px solid var(--sv-border);
+}
+td { text-align: left; padding: var(--sv-space-3) var(--sv-space-3); border-bottom: 1px solid var(--sv-border); font-size: var(--sv-text-md); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr[routerLink] { cursor: pointer; }
+tbody tr[routerLink]:hover td { background: var(--sv-surface-hover); }
+
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+// El encuentro, el marcador, el estado y la competición de cada fila los peina ahora
+// FilaPartidoComponent (shared/fila-partido), que es el mismo en las tres tablas de esta
+// pantalla y en la ficha de equipo. Aquí solo queda lo que envuelve a esas filas.
+.th-cuando { width: 74px; text-align: center; }
+
+
+/* Cuántos hay en total, al lado del título: con la lista paginada, si no se dice, parece
+   que solo hay cinco partidos en directo en todo el mundo. */
+.cuenta-total {
+  font-family: 'JetBrains Mono', monospace; font-size: var(--sv-text-xs); font-weight: 500;
+  color: var(--sv-text-muted); margin-left: var(--sv-space-2);
+}
+
+/* --- la cabecera del directo ------------------------------------------------------------ */
+.titulo-vivo { display: flex; align-items: center; gap: var(--sv-space-2); }
+
+.punto-vivo {
+  position: relative;
+  width: 9px; height: 9px; flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--sv-danger);
+  animation: sv-latido-vivo 1.6s ease-in-out infinite;
+
+  &::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: var(--sv-danger);
+    animation: sv-halo-vivo 1.6s ease-out infinite;
+  }
+}
+@keyframes sv-latido-vivo {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+@keyframes sv-halo-vivo {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .punto-vivo { animation: none; }
+  .punto-vivo::after { display: none; }
+}

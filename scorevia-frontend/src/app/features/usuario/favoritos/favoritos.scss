@@ -1,0 +1,3 @@
+.tabs { display: flex; gap: var(--sv-space-2); margin-bottom: var(--sv-space-4); }
+.tabs button { padding: var(--sv-space-2) var(--sv-space-3); border: 1px solid var(--sv-border); border-radius: var(--sv-radius-sm); background: var(--sv-surface); color: var(--sv-text-primary); cursor: pointer; }
+.tabs button.activa { background: var(--sv-accent); color: var(--sv-accent-ink); }

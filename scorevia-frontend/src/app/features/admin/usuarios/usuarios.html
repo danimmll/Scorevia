@@ -1,0 +1,44 @@
+<h1>{{ 'users' | transloco }}</h1>
+
+@if (error()) {
+  <p class="error-message">{{ error() }}</p>
+}
+
+<div class="tabla-scroll">
+  <table>
+    <thead><tr><th>Nickname</th><th>{{ 'name' | transloco }}</th><th>{{ 'email' | transloco }}</th><th>{{ 'active' | transloco }}</th><th></th></tr></thead>
+    <tbody>
+      @for (u of usuarios(); track u.idUsuario) {
+        <tr>
+          <td>{{ u.nickname }}</td>
+          <td>{{ u.nombreUsuario }} {{ u.apellidoUsuario }}</td>
+          <td>{{ u.correoUsuario }}</td>
+          <td>{{ (u.activo ? 'yes' : 'no') | transloco }}</td>
+          <td>
+            <button (click)="editar(u)">{{ 'edit' | transloco }}</button>
+            <button (click)="darDeBaja(u)">{{ 'deactivate' | transloco }}</button>
+          </td>
+        </tr>
+        @if (edicionId() === u.idUsuario) {
+          <tr>
+            <td colspan="5">
+              <form [formGroup]="editarForm" (ngSubmit)="guardar()">
+                <input formControlName="nickname" placeholder="Nickname" aria-label="Nickname">
+                <input formControlName="nombreUsuario" [placeholder]="'name' | transloco" [attr.aria-label]="'name' | transloco">
+                <input formControlName="apellidoUsuario" [placeholder]="'surname' | transloco" [attr.aria-label]="'surname' | transloco">
+                <input formControlName="correoUsuario" [placeholder]="'email' | transloco" [attr.aria-label]="'email' | transloco">
+                <input formControlName="urlFoto" [placeholder]="'photo_url_2' | transloco" [attr.aria-label]="'photo_url_2' | transloco">
+                <button type="submit">{{ 'save' | transloco }}</button>
+                <button type="button" (click)="cancelarEdicion()">{{ 'cancel' | transloco }}</button>
+              </form>
+            </td>
+          </tr>
+        }
+      } @empty {
+        <tr><td colspan="5">{{ 'no_users' | transloco }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<sv-paginador [pagina]="pagina()" [totalPaginas]="totalPaginas()" (cambio)="cargarPagina($event)" />

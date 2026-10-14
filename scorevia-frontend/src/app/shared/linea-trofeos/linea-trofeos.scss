@@ -1,0 +1,88 @@
+.lt-vacio { font-size: var(--sv-text-sm); color: var(--sv-text-muted); margin: 0; }
+
+.lt-linea {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--sv-space-1);
+  position: relative;
+}
+
+// El hilo vertical que une las temporadas: es lo que convierte una lista en una línea del
+// tiempo. Se dibuja con un pseudoelemento para no meter un <div> decorativo por fila.
+.lt-linea::before {
+  content: '';
+  position: absolute;
+  left: 4px; top: 8px; bottom: 8px;
+  width: 1px;
+  background: var(--sv-border);
+}
+
+.lt-temporada {
+  position: relative;
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  align-items: baseline;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-2) 0 var(--sv-space-2) var(--sv-space-5);
+}
+
+.lt-punto {
+  position: absolute;
+  left: 0; top: 13px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-strong);
+}
+// Una temporada con títulos se marca en el hilo: así los años buenos se localizan de un
+// vistazo sin leer los nombres.
+.lt-punto--ganador {
+  background: var(--sv-amber);
+  border-color: var(--sv-amber);
+}
+
+.lt-anio {
+  font-size: var(--sv-text-sm);
+  font-weight: 600;
+  color: var(--sv-text-secondary);
+  white-space: nowrap;
+}
+.lt-sin-fecha { color: var(--sv-text-muted); font-weight: 400; }
+
+.lt-titulos { display: flex; flex-wrap: wrap; gap: var(--sv-space-1); }
+
+.lt-chip {
+  display: inline-flex; align-items: center; gap: var(--sv-space-1);
+  font-size: var(--sv-text-xs);
+  padding: 2px var(--sv-space-2);
+  border-radius: var(--sv-radius-xs);
+  border: 1px solid var(--sv-border);
+  background: var(--sv-surface-2);
+  color: var(--sv-text-secondary);
+}
+.lt-chip--ganado {
+  border-color: color-mix(in srgb, var(--sv-amber) 45%, var(--sv-border));
+  color: var(--sv-text-primary);
+  font-weight: 600;
+}
+// Un subcampeonato no es un título: mismo sitio, mucho menos peso visual.
+.lt-chip--segundo { opacity: 0.62; font-size: var(--sv-text-xs); }
+
+.lt-copa { font-size: var(--sv-text-xs); }
+
+.lt-mas { margin-top: var(--sv-space-3); cursor: pointer; font-family: inherit; }
+
+@media (max-width: 520px) {
+  .lt-temporada { grid-template-columns: 1fr; gap: var(--sv-space-1); }
+}
+
+/* La bandera del pais del trofeo. Sin ella, una ficha es una lista de "Super Cup" y "Cup"
+   que no dice de donde es ninguna: hay Supercopa en cuarenta paises. */
+.lt-bandera {
+  width: 14px;
+  height: 10px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}

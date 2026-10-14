@@ -1,0 +1,106 @@
+logging:
+  file:
+    name: /logs/usuarios-roles.log
+  level:
+    root: INFO
+    # El nivel del propio paquete, por variable y con INFO por defecto (igual que el
+    # Gateway). Estaba en DEBUG a fuego: con el LoggingAspect trazando cada metodo, eso
+    # convertia el log en 16 GB diarios en un servicio que no atendia a nadie. Para volver
+    # a verlo todo: USUARIOS_LOG_LEVEL=DEBUG.
+    '[usuariosroles]': "${USUARIOS_LOG_LEVEL:INFO}"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+      file-name-pattern: /logs/usuarios-roles-%d{yyyy-MM-dd}.%i.log
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: microservicio-usuarios-roles
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 3000
+            readTimeout: 3000
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 30000
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      "[jakarta.persistence.validation.mode]": none
+      hibernate:
+        default_schema: sch_usuarios
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_APP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  verificacion:
+    codigo-expira-minutos: 15
+  cookie:
+    # Fail-closed: si falta la env var, mejor que la cookie exija HTTPS de más (rompe en local
+    # sobre HTTP plano, visible al momento) a que sirva el refresh token sin Secure en
+    # producción por un despliegue mal configurado, en silencio.
+    secure: ${COOKIE_SECURE:true}
+    # SameSite de la cookie de refresco. "Lax" es lo correcto cuando la web y la API comparten
+    # dominio (que es el caso detras de Caddy) y ademas protege de CSRF de balde.
+    #
+    # Se saca a variable para el montaje en el que NO comparten dominio: el frontend en local
+    # contra la API del servidor. Ahi "Lax" no viaja en las peticiones XHR entre sitios, asi
+    # que la cookie no se manda y la sesion se cae en cuanto caduca el access token. Con
+    # COOKIE_SAME_SITE=None si va -- exige Secure, que ya esta -- a cambio de perder esa
+    # proteccion CSRF de regalo. No se pone None por defecto a proposito.
+    same-site: ${COOKIE_SAME_SITE:Lax}
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4200}
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: "http://${EUREKA_USERNAME:eureka}:${EUREKA_PASSWORD:eureka}@eureka-server:8761/eureka/"
+    healthcheck:
+      enabled: false
+  instance:
+    prefer-ip-address: true # FIX: Clave para Docker
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID}
+
+incidencias:
+  internal-secret: ${INCIDENCIAS_INTERNAL_SECRET}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs/usuarios
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics

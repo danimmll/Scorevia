@@ -1,0 +1,42 @@
+@if (temporadas().length === 0) {
+  <p class="lt-vacio">{{ 'no_titles_on_record' | transloco }}</p>
+} @else {
+  <ol class="lt-linea">
+    @for (t of visibles(); track t.etiqueta ?? 'sin-temporada') {
+      <li class="lt-temporada">
+        <span class="lt-punto" [class.lt-punto--ganador]="t.ganados.length > 0" aria-hidden="true"></span>
+
+        <span class="lt-anio mono">
+          @if (t.etiqueta) { {{ t.etiqueta }} } @else { <span class="lt-sin-fecha">{{ 'no_date' | transloco }}</span> }
+        </span>
+
+        <span class="lt-titulos">
+          @for (trofeo of t.ganados; track trofeo.idTrofeo) {
+            <span class="lt-chip lt-chip--ganado" [title]="trofeo.pais ?? ''">
+              <span class="lt-copa" aria-hidden="true">🏆</span>
+              @if (trofeo.banderaPais) {
+                <img [src]="trofeo.banderaPais" [alt]="trofeo.pais ?? ''" class="lt-bandera">
+              }
+              {{ trofeo.competicion }}
+            </span>
+          }
+          <!-- Los subcampeonatos, más apagados: cuentan, pero no son lo mismo que ganar. -->
+          @for (trofeo of t.subcampeonatos; track trofeo.idTrofeo) {
+            <span class="lt-chip lt-chip--segundo" [title]="'runner_up_in' | transloco: { pais: trofeo.pais ?? '' }">
+              @if (trofeo.banderaPais) {
+                <img [src]="trofeo.banderaPais" [alt]="trofeo.pais ?? ''" class="lt-bandera">
+              }
+              {{ trofeo.competicion }}
+            </span>
+          }
+        </span>
+      </li>
+    }
+  </ol>
+
+  @if (ocultas() > 0 || desplegado()) {
+    <button type="button" class="enlace-seccion lt-mas" (click)="alternar()">
+      @if (desplegado()) { {{ 'see_less' | transloco }} } @else { {{ 'see_n_more_seasons' | transloco: { n: ocultas() } }} }
+    </button>
+  }
+}

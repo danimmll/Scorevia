@@ -1,0 +1,54 @@
+<div class="auth-wrapper">
+  <div class="auth-card" style="text-align: center;">
+    
+    <div class="brand" style="justify-content: center; margin-bottom: 20px;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="var(--sv-accent, #3b82f6)" stroke-width="1.6"/>
+        <path d="M12 6L15.5 8.6L14.2 12.7H9.8L8.5 8.6L12 6Z" stroke="var(--sv-accent, #3b82f6)" stroke-width="1.3" stroke-linejoin="round"/>
+        <path d="M12 2V6M12 22V18M2 12H6M22 12H18" stroke="var(--sv-accent, #3b82f6)" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <span>ScoreVia</span>
+    </div>
+
+    <h2>{{ 'almost_ready' | transloco }}</h2>
+    <p class="sub">
+      {{ 'enter_the_6_digit_code_sent_to' | transloco }}<br>
+      <strong style="color: var(--text-main); background: var(--bg-card); padding: 2px 6px; border-radius: 4px; margin-top: 5px; display: inline-block;">
+        {{ correo }}
+      </strong>
+    </p>
+
+    @if (errorMessage) {
+      <div style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
+        {{ errorMessage }}
+      </div>
+    }
+
+    @if (successMessage) {
+      <div style="background: rgba(34, 197, 94, 0.1); color: #22c55e; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto 10px;">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <p style="font-weight: 600; margin: 0;">{{ 'success' | transloco }}</p>
+        <p style="font-size: 0.9rem; margin-top: 5px;">{{ successMessage }}</p>
+      </div>
+    } @else {
+      
+      <form [formGroup]="verifyForm" (ngSubmit)="onSubmit()" style="margin-top: 1.5rem;">
+        <div class="form-group">
+          <input type="text" id="codigo" formControlName="codigo" placeholder="000000" maxlength="6"
+                 style="text-align: center; letter-spacing: 0.5em; font-size: 1.5rem; font-weight: bold; font-family: monospace;" [attr.aria-label]="'6_digit_verification_code' | transloco">
+        </div>
+
+        <button type="submit" class="btn-submit" [disabled]="verifyForm.invalid || isLoading" style="margin-top: 1rem;">
+          {{ (isLoading ? 'checking' : 'confirm_account') | transloco }}
+        </button>
+      </form>
+
+      <div class="footer-link" style="margin-top: 1.5rem;">
+        {{ 'wrong_email' | transloco }} <a routerLink="/register">{{ 'back_to_sign_up' | transloco }}</a>
+      </div>
+    }
+  </div>
+</div>

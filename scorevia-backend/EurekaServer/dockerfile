@@ -1,0 +1,9 @@
+FROM eclipse-temurin:21-jre-alpine
+# curl para el HEALTHCHECK de docker-compose (wget/curl no vienen instalados en la imagen
+# base de eclipse-temurin): sin esto el healthcheck fallaba siempre por "comando no
+# encontrado", nunca por la app en sí, y docker-compose terminaba marcando el contenedor
+# unhealthy y tumbando a todos los servicios que dependen de eureka-server.
+RUN apk add --no-cache curl
+VOLUME /tmp
+COPY target/eurekaserver-0.0.1-SNAPSHOT.jar app.jar
+ENTRYPOINT ["java","-jar","/app.jar"]

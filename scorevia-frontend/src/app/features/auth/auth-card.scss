@@ -1,0 +1,225 @@
+// Tarjeta de autenticacion: login, registro, verificar, y las dos de recuperar contrasena.
+//
+// Las cinco pantallas comparten este fichero. Antes register.scss era una copia byte a byte
+// de login.scss (174 lineas duplicadas) mientras que verify, forgot-password y
+// reset-password ya apuntaban a '../login/login.scss', asi que la mitad del grupo tiraba
+// del original y la otra mitad de la copia: un arreglo en una no llegaba a la otra.
+
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--sv-bg);
+}
+
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--sv-bg);
+  padding: var(--sv-space-5);
+  /* Textura de fondo sutil tipo campo de fútbol */
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 100px, var(--sv-pitch-line) 100px, var(--sv-pitch-line) 101px);
+}
+
+.auth-card {
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-lg);
+  padding: var(--sv-space-7) var(--sv-space-6);
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sv-space-3);
+  margin-bottom: var(--sv-space-6);
+  
+  svg { flex-shrink: 0; }
+  span { 
+    font-family: 'Anton', sans-serif; 
+    font-weight: 700; 
+    font-size: var(--sv-text-2xl); 
+    color: var(--sv-text-primary);
+    letter-spacing: -0.02em; 
+  }
+}
+
+h2 {
+  font-family: 'Anton', sans-serif;
+  font-size: var(--sv-text-xl);
+  font-weight: 700;
+  margin: 0 0 var(--sv-space-2);
+  text-align: center;
+  color: var(--sv-text-primary);
+}
+
+.sub {
+  text-align: center;
+  color: var(--sv-text-secondary);
+  font-size: var(--sv-text-md);
+  margin: 0 0 var(--sv-space-6);
+}
+
+.form-group {
+  margin-bottom: var(--sv-space-5);
+
+  label {
+    display: block;
+    font-size: var(--sv-text-sm);
+    color: var(--sv-text-secondary);
+    margin-bottom: var(--sv-space-2);
+    font-weight: 500;
+  }
+
+  input {
+    width: 100%;
+    background: var(--sv-surface-2);
+    border: 1px solid var(--sv-border);
+    color: var(--sv-text-primary);
+    padding: var(--sv-space-3) var(--sv-space-4);
+    border-radius: var(--sv-radius-md);
+    font-size: var(--sv-text-md);
+    font-family: 'Archivo', sans-serif;
+    transition: all 0.2s;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: var(--sv-accent);
+      background: var(--sv-surface);
+    }
+  }
+}
+
+.btn-submit {
+  width: 100%;
+  background: var(--sv-accent);
+  color: var(--sv-accent-ink);
+  border: none;
+  padding: var(--sv-space-3);
+  border-radius: var(--sv-radius-md);
+  font-size: var(--sv-text-md);
+  font-weight: 600;
+  font-family: 'Archivo', sans-serif;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: var(--sv-space-3);
+
+  &:hover { opacity: 0.92; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: var(--sv-space-6) 0;
+  color: var(--sv-text-muted);
+  font-size: var(--sv-text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--sv-border);
+  }
+  &::before { margin-right: var(--sv-space-3); }
+  &::after { margin-left: var(--sv-space-3); }
+}
+
+.btn-google {
+  width: 100%;
+  background: var(--sv-surface-2);
+  color: var(--sv-text-primary);
+  border: 1px solid var(--sv-border);
+  padding: var(--sv-space-3);
+  border-radius: var(--sv-radius-md);
+  font-size: var(--sv-text-md);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sv-space-3);
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--sv-surface-hover);
+    border-color: var(--sv-border-strong);
+  }
+}
+
+.footer-link {
+  text-align: center;
+  margin-top: var(--sv-space-6);
+  font-size: var(--sv-text-md);
+  color: var(--sv-text-secondary);
+
+  a {
+    color: var(--sv-accent);
+    text-decoration: none;
+    font-weight: 500;
+
+    &:hover { text-decoration: underline; }
+  }
+}
+.error-message {
+  background: color-mix(in srgb, var(--sv-danger) 12%, transparent);
+  color: var(--sv-danger);
+  border: 1px solid var(--sv-danger);
+  border-radius: var(--sv-radius-sm);
+  padding: var(--sv-space-2) var(--sv-space-3);
+  font-size: var(--sv-text-sm);
+  margin-bottom: var(--sv-space-3);
+}
+
+
+/* ---------------------------------------------------------------------------
+   Foco visible.
+   El :focus de los inputs solo cambiaba el color del borde, y un borde de 1px
+   cambiando de tono no se ve al tabular. Con el anillo se ve donde estas sin
+   tener que adivinarlo.
+   --------------------------------------------------------------------------- */
+.form-group input:focus-visible,
+.btn-submit:focus-visible,
+.btn-google:focus-visible,
+.footer-link a:focus-visible {
+  outline: 2px solid var(--sv-accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Movil.
+   La tarjeta tenia 40px de padding vertical y 28px de horizontal fijos; en un
+   movil de 360px eso deja 304px utiles para el formulario y el conjunto queda
+   apretado contra los bordes, con el wrapper metiendo ademas otros 20px por
+   lado. Aqui se afloja todo de golpe y la tarjeta pasa a ocupar el ancho.
+   --------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .auth-wrapper {
+    padding: var(--sv-space-3);
+    align-items: flex-start;
+  }
+
+  .auth-card {
+    padding: var(--sv-space-6) var(--sv-space-4);
+    margin-top: var(--sv-space-5);
+    border-radius: var(--sv-radius-md);
+  }
+
+  .brand span { font-size: var(--sv-text-xl); }
+  h2 { font-size: var(--sv-text-lg); }
+
+  /* 16px es el minimo que evita que Safari en iOS haga zoom al enfocar un
+     campo; con 14px la pagina salta de escala en cuanto tocas el correo. */
+  .form-group input { font-size: var(--sv-text-lg); }
+
+  .divider { margin: var(--sv-space-5) 0; }
+}

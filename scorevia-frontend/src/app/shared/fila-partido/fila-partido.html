@@ -1,0 +1,57 @@
+<!-- Cuándo: la hora si no ha empezado, el minuto si se está jugando, "Final" si terminó. -->
+<td class="fp-cuando">
+  @if (enJuego && minuto; as m) {
+    <!-- El punto rojo es la señal de "esto se está moviendo ahora mismo", y va antes que el
+         minuto porque se ve de un vistazo sin leer nada. -->
+    <span class="fp-vivo">
+      <span class="fp-punto" aria-hidden="true"></span>
+      <span class="fp-minuto">{{ m.clave | transloco: m.params }}</span>
+      <span class="sr-only">{{ 'live_2' | transloco }}</span>
+    </span>
+  } @else if (etiquetaEstado; as etiqueta) {
+    <span class="fp-estado" [class.fp-estado--aplazado]="partido.estado === 'APLAZADO'">{{ etiqueta }}</span>
+  } @else {
+    <span class="fp-hora">{{ partido.fecha | date: (formatoFecha === 'fecha' ? 'd MMM, HH:mm' : 'HH:mm') }}</span>
+  }
+</td>
+
+<!-- El encuentro: rejilla de tres columnas para que el marcador no baile de fila en fila. -->
+<td class="fp-encuentro">
+  <span class="fp-equipo fp-equipo--local" [class.fp-equipo--gana]="ganaLocal">
+    <span class="fp-nombre">{{ partido.equipoLocal }}</span>
+    <img svImagen="equipo" [src]="partido.escudoLocal" alt="" class="fp-escudo">
+  </span>
+
+  <span class="fp-marcador" [class.fp-marcador--vivo]="enJuego" [class.fp-marcador--gol]="hayGol()">
+    @if (hayMarcador) {
+      <span class="fp-goles" [class.fp-goles--gana]="ganaLocal">{{ partido.resultadoLocal }}</span>
+      <span class="fp-guion">-</span>
+      <span class="fp-goles" [class.fp-goles--gana]="ganaVisitante">{{ partido.resultadoVisitante }}</span>
+      <!-- Un 1-1 que se decidió en los penaltis no es un empate, y sin esto lo parecía. -->
+      @if (partido.penaltisLocal != null && partido.penaltisVisitante != null) {
+        <span class="fp-penaltis">{{ 'n_pens_short' | transloco: { local: partido.penaltisLocal, visitante: partido.penaltisVisitante } }}</span>
+      }
+    } @else {
+      <span class="fp-vs">vs</span>
+    }
+  </span>
+
+  <span class="fp-equipo fp-equipo--visitante" [class.fp-equipo--gana]="ganaVisitante">
+    <img svImagen="equipo" [src]="partido.escudoVisitante" alt="" class="fp-escudo">
+    <span class="fp-nombre">{{ partido.equipoVisitante }}</span>
+  </span>
+</td>
+
+@if (mostrarLiga) {
+  <!-- Escudo y bandera juntos porque hay muchísimas competiciones que comparten nombre entre
+       países: "Primera División" sola no dice de cuál se trata. -->
+  <td class="fp-liga">
+    @if (partido.logoLiga) {
+      <img svImagen="liga" [src]="partido.logoLiga" alt="" class="fp-liga-logo">
+    }
+    @if (partido.banderaLiga) {
+      <img [src]="partido.banderaLiga" alt="" class="fp-bandera" loading="lazy">
+    }
+    <span class="fp-liga-nombre">{{ partido.liga }}</span>
+  </td>
+}

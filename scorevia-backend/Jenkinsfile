@@ -1,0 +1,297 @@
+pipeline {
+    agent { label 'docker' }
+
+    // Jenkins ya no está expuesto a internet (solo 127.0.0.1 en el host, ver
+    // docker-compose.infra.yml), así que el webhook de GitHub no puede alcanzarlo. Se
+    // sustituye por polling: Jenkins consulta el repo cada 5 min y solo arranca build si
+    // hay commits nuevos (no es un build en bucle, es barato).
+    triggers {
+        pollSCM('H/5 * * * *')
+    }
+
+    environment {
+        DB_USER = 'postgres'
+        DB_NAME = 'futbol_stats'
+        COOKIE_SECURE = 'true'
+        INCIDENCIAS_DB_USER = 'scorevia_incidencias'
+        USUARIOS_DB_USER = 'scorevia_usuarios'
+        ESTADISTICAS_DB_USER = 'scorevia_estadisticas'
+        // Solo el username: no es secreto (es Basic Auth interno entre Eureka y sus
+        // clientes, nunca expuesto fuera de la red docker), la contraseña sí viene de un
+        // credential de Jenkins (ver EUREKA_PASSWORD más abajo).
+        EUREKA_USERNAME = 'scorevia_eureka'
+
+        // ------------------------------------------------------- ingesta automática ----
+        //
+        // Los cinco trabajos que mantienen los datos al día sin que nadie lance un script.
+        // Van AQUÍ y no en un .env porque `scorevia-backend/.env` está en .gitignore: no
+        // existe en el workspace que clona Jenkins, así que docker compose no lo encuentra
+        // y cada variable caería a su valor por defecto (`false`). O sea que encenderlos en
+        // el .env de la máquina funciona para un `docker compose up` a mano, pero el
+        // siguiente despliegue del pipeline los apagaría otra vez sin decir nada.
+        //
+        // No son secretos, son interruptores: en git se ven, se revisan y quedan con su
+        // motivo al lado.
+        //
+        // Coste diario aproximado de tenerlos encendidos (sobre 150.000 de cuota):
+        //   directo 2.880 · post-partido ~50 · recogida ~75 · calendario 5 ·
+        //   clasificaciones ~660  =>  ~3.700, un 2,5%.
+        INGESTA_VIVO_HABILITADA = 'true'
+        // Ojo: este depende del directo. La cola de partidos recién acabados se llena cuando
+        // el tick en vivo ve pasar un partido a FT, así que con INGESTA_VIVO apagado no se
+        // llenaría nunca.
+        INGESTA_POST_PARTIDO_HABILITADA = 'true'
+        INGESTA_RECOGIDA_HABILITADA = 'true'
+        INGESTA_CALENDARIO_HABILITADA = 'true'
+        INGESTA_CLASIFICACIONES_HABILITADA = 'true'
+        // El repaso de mediodia a lo de ayer y lo de hoy: destraba los partidos que se quedan
+        // colgados y completa los que acabaron sin eventos ni estadisticas.
+        INGESTA_RECONCILIACION_HABILITADA = 'true'
+    }
+
+    stages {
+
+        stage('Build Microservices') {
+            when {
+                // Antes había un "not { changeset frontend }" acá: Declarative Pipeline ANDea
+                // las condiciones hermanas de un "when", así que un commit que tocara backend
+                // Y frontend a la vez (contrato de API compartido, commit ancho) hacía que la
+                // condición completa diera false -- la stage entera se SALTABA (no fallaba) y
+                // el pipeline igual reportaba éxito, sin build/test/deploy real. El "anyOf" de
+                // abajo ya es suficiente para decidir si esta stage debe correr.
+                anyOf {
+                    changeset "scorevia-backend/**"
+                    changeset "Jenkinsfile"
+                }
+            }
+            steps {
+                dir('scorevia-backend') {
+                    sh 'cd EurekaServer && chmod +x mvnw && ./mvnw clean install -DskipTests'
+                    sh 'cd Gateway && chmod +x mvnw && ./mvnw clean install -DskipTests'
+                    sh 'cd Microservicio-usuarios-roles && chmod +x mvnw && ./mvnw clean install -DskipTests'
+                    sh 'cd Microservicio-incidencias && chmod +x mvnw && ./mvnw clean install -DskipTests'
+                    sh 'cd Microservicio-estadisticas && chmod +x mvnw && ./mvnw clean install -DskipTests'
+                    sh 'cd Microservicio-predicciones && chmod +x mvnw && ./mvnw clean install -DskipTests'
+                }
+            }
+        }
+
+        stage('Test Microservices') {
+            when {
+                // Antes había un "not { changeset frontend }" acá: Declarative Pipeline ANDea
+                // las condiciones hermanas de un "when", así que un commit que tocara backend
+                // Y frontend a la vez (contrato de API compartido, commit ancho) hacía que la
+                // condición completa diera false -- la stage entera se SALTABA (no fallaba) y
+                // el pipeline igual reportaba éxito, sin build/test/deploy real. El "anyOf" de
+                // abajo ya es suficiente para decidir si esta stage debe correr.
+                anyOf {
+                    changeset "scorevia-backend/**"
+                    changeset "Jenkinsfile"
+                }
+            }
+            steps {
+                dir('scorevia-backend') {
+                    sh 'cd EurekaServer && ./mvnw test'
+                    junit testResults: 'EurekaServer/target/surefire-reports/*.xml', allowEmptyResults: true
+
+                    sh 'cd Gateway && ./mvnw test'
+                    junit testResults: 'Gateway/target/surefire-reports/*.xml', allowEmptyResults: true
+
+                    sh 'cd Microservicio-usuarios-roles && ./mvnw test'
+                    junit testResults: 'Microservicio-usuarios-roles/target/surefire-reports/*.xml', allowEmptyResults: true
+
+                    sh 'cd Microservicio-incidencias && ./mvnw test'
+                    junit testResults: 'Microservicio-incidencias/target/surefire-reports/*.xml', allowEmptyResults: true
+
+                    sh 'cd Microservicio-estadisticas && ./mvnw test'
+                    junit testResults: 'Microservicio-estadisticas/target/surefire-reports/*.xml', allowEmptyResults: true
+
+
+                    sh 'cd Microservicio-predicciones && ./mvnw test'
+                    junit testResults: 'Microservicio-predicciones/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            when {
+                // Antes había un "not { changeset frontend }" acá: Declarative Pipeline ANDea
+                // las condiciones hermanas de un "when", así que un commit que tocara backend
+                // Y frontend a la vez (contrato de API compartido, commit ancho) hacía que la
+                // condición completa diera false -- la stage entera se SALTABA (no fallaba) y
+                // el pipeline igual reportaba éxito, sin build/test/deploy real. El "anyOf" de
+                // abajo ya es suficiente para decidir si esta stage debe correr.
+                anyOf {
+                    changeset "scorevia-backend/**"
+                    changeset "Jenkinsfile"
+                }
+            }
+            steps {
+                dir('scorevia-backend') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh 'cd EurekaServer && ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
+                        sh 'cd Gateway && ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
+                        sh 'cd Microservicio-usuarios-roles && ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
+                        sh 'cd Microservicio-incidencias && ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
+                        sh 'cd Microservicio-estadisticas && ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
+                        sh 'cd Microservicio-predicciones && ./mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            when {
+                // Antes había un "not { changeset frontend }" acá: Declarative Pipeline ANDea
+                // las condiciones hermanas de un "when", así que un commit que tocara backend
+                // Y frontend a la vez (contrato de API compartido, commit ancho) hacía que la
+                // condición completa diera false -- la stage entera se SALTABA (no fallaba) y
+                // el pipeline igual reportaba éxito, sin build/test/deploy real. El "anyOf" de
+                // abajo ya es suficiente para decidir si esta stage debe correr.
+                anyOf {
+                    changeset "scorevia-backend/**"
+                    changeset "Jenkinsfile"
+                }
+            }
+            steps {
+                // waitForQualityGate sin dir() mira el (los) report-task.txt que encuentre en
+                // el workspace, y con 6 módulos analizados por separado (uno por cada
+                // ./mvnw sonar:sonar en la etapa anterior) hay 6 report-task.txt distintos:
+                // sin esto, el plugin se queda con "el primero" que encuentra (en la práctica
+                // el de EurekaServer, que no tiene ni un solo test) e ignora los otros 5 por
+                // completo. Se recorre cada módulo por separado, cada uno mirando SU PROPIO
+                // report-task.txt (generado en <módulo>/target/sonar/), abortando en el primero
+                // que no pase su quality gate -- mismo criterio "abortar en el primer fallo"
+                // que ya usan el resto de etapas del pipeline.
+                timeout(time: 1, unit: 'HOURS') {
+                    script {
+                        def modulos = [
+                            'EurekaServer',
+                            'Gateway',
+                            'Microservicio-usuarios-roles',
+                            'Microservicio-incidencias',
+                            'Microservicio-estadisticas',
+                            'Microservicio-predicciones'
+                        ]
+                        modulos.each { modulo ->
+                            dir("scorevia-backend/${modulo}") {
+                                waitForQualityGate abortPipeline: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Docker Build & Deploy') {
+            when {
+                // Antes había un "not { changeset frontend }" acá: Declarative Pipeline ANDea
+                // las condiciones hermanas de un "when", así que un commit que tocara backend
+                // Y frontend a la vez (contrato de API compartido, commit ancho) hacía que la
+                // condición completa diera false -- la stage entera se SALTABA (no fallaba) y
+                // el pipeline igual reportaba éxito, sin build/test/deploy real. El "anyOf" de
+                // abajo ya es suficiente para decidir si esta stage debe correr.
+                anyOf {
+                    changeset "scorevia-backend/**"
+                    changeset "Jenkinsfile"
+                }
+            }
+            steps {
+                dir('scorevia-backend') {
+                    withCredentials([
+                            string(credentialsId: 'POSTGRES_SECRET', variable: 'DB_PASS'),
+                            string(credentialsId: 'JWT_SECRET', variable: 'JWT_KEY'),
+                            string(credentialsId: 'API_FOOTBALL_KEY', variable: 'API_FOOTBALL_KEY'),
+                            string(credentialsId: 'MAIL_USERNAME', variable: 'MAIL_USERNAME'),
+                            string(credentialsId: 'MAIL_APP_PASSWORD', variable: 'MAIL_APP_PASSWORD'),
+                            string(credentialsId: 'GOOGLE_CLIENT_ID', variable: 'GOOGLE_CLIENT_ID'),
+                            string(credentialsId: 'INCIDENCIAS_INTERNAL_SECRET', variable: 'INCIDENCIAS_INTERNAL_SECRET'),
+                            string(credentialsId: 'INCIDENCIAS_DB_PASS', variable: 'INCIDENCIAS_DB_PASS'),
+                            string(credentialsId: 'USUARIOS_DB_PASS', variable: 'USUARIOS_DB_PASS'),
+                            string(credentialsId: 'ESTADISTICAS_DB_PASS', variable: 'ESTADISTICAS_DB_PASS'),
+                            string(credentialsId: 'EUREKA_PASSWORD', variable: 'EUREKA_PASSWORD'),
+                            // No es secreto, pero viaja como credential igual que el resto de
+                            // config de despliegue: docker-compose.yml no reenvía vars del host
+                            // que no estén en su "environment:", así que sin esto el Gateway (y
+                            // cada microservicio) caía siempre al default de CORS
+                            // "http://localhost:4200", rompiendo el frontend real por CORS.
+                            string(credentialsId: 'FRONTEND_ORIGIN', variable: 'FRONTEND_ORIGIN')
+                    ]) {
+
+                        sh '''
+                            export DB_USER=$DB_USER
+                            export DB_NAME=$DB_NAME
+                            export DB_PASS=$DB_PASS
+                            export JWT_KEY=$JWT_KEY
+                            export API_FOOTBALL_KEY=$API_FOOTBALL_KEY
+                            export GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+                            export MAIL_USERNAME=$MAIL_USERNAME
+                            export MAIL_APP_PASSWORD=$MAIL_APP_PASSWORD
+                            export INCIDENCIAS_INTERNAL_SECRET=$INCIDENCIAS_INTERNAL_SECRET
+                            export COOKIE_SECURE=$COOKIE_SECURE
+                            export INCIDENCIAS_DB_USER=$INCIDENCIAS_DB_USER
+                            export INCIDENCIAS_DB_PASS=$INCIDENCIAS_DB_PASS
+                            export USUARIOS_DB_USER=$USUARIOS_DB_USER
+                            export USUARIOS_DB_PASS=$USUARIOS_DB_PASS
+                            export ESTADISTICAS_DB_USER=$ESTADISTICAS_DB_USER
+                            export ESTADISTICAS_DB_PASS=$ESTADISTICAS_DB_PASS
+                            export EUREKA_USERNAME=$EUREKA_USERNAME
+                            export EUREKA_PASSWORD=$EUREKA_PASSWORD
+                            export FRONTEND_ORIGIN=$FRONTEND_ORIGIN
+
+                            export INGESTA_VIVO_HABILITADA=$INGESTA_VIVO_HABILITADA
+                            export INGESTA_POST_PARTIDO_HABILITADA=$INGESTA_POST_PARTIDO_HABILITADA
+                            export INGESTA_RECOGIDA_HABILITADA=$INGESTA_RECOGIDA_HABILITADA
+                            export INGESTA_CALENDARIO_HABILITADA=$INGESTA_CALENDARIO_HABILITADA
+                            export INGESTA_CLASIFICACIONES_HABILITADA=$INGESTA_CLASIFICACIONES_HABILITADA
+                            export INGESTA_RECONCILIACION_HABILITADA=$INGESTA_RECONCILIACION_HABILITADA
+
+                            # Con la lista explícita de servicios, y no un "up" a secas: el
+                            # compose incluye también el servicio `frontend`, así que sin
+                            # nombrarlos el despliegue del backend reconstruía y reiniciaba
+                            # Angular por el camino. Lo mismo con el `down` de antes, que
+                            # además tumbaba el frontend levantado a mano.
+                            #
+                            # `up -d --build` ya recrea los contenedores cuya imagen cambia,
+                            # así que no hace falta bajar nada primero.
+                            docker compose up -d --build \
+                                postgres-db \
+                                eureka-server \
+                                api-gateway \
+                                usuariosroles \
+                                incidencias \
+                                estadisticas \
+                                predicciones
+                        '''
+                    }
+                }
+            }
+        }
+
+        // Las stages de frontend vivían aquí y se han quitado a propósito.
+        //
+        // El pipeline despliega SOLO el backend. Angular se levanta a mano cuando hace falta
+        // (ver README / docs de infraestructura): pasar el frontend por Jenkins daba
+        // problemas, y además el `docker compose up -d --build` de la stage de arriba, al no
+        // llevar la lista de servicios, arrastraba también el contenedor `frontend` del
+        // compose y lo reconstruía en cada build del backend.
+        //
+        // Si algún día se quiere volver a meter, era: npm ci -> ng build -> ng test ->
+        // sonar-scanner (con scorevia-frontend/sonar-project.properties) -> quality gate ->
+        // docker compose up -d --build frontend.
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+
+        success {
+            echo 'Pipeline finalizado correctamente.'
+        }
+
+        failure {
+            echo 'El pipeline ha fallado.'
+        }
+    }
+}

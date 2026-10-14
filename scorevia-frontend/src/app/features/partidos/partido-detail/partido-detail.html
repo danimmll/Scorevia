@@ -1,0 +1,435 @@
+@if (cargando()) {
+  <sv-cargando [filas]="6" />
+} @else if (error()) {
+  <p class="error-message">{{ error() }}</p>
+} @else if (detalle(); as d) {
+
+  <div class="hero">
+    <!-- La fase solo si consta: en una eliminatoria no hay número de jornada, y antes se
+         pintaba "Jornada" con el hueco vacío detrás. -->
+    <div class="hero-liga">
+      {{ d.info.liga }}@if (fase()) { <span>· {{ fase() }}</span> }
+    </div>
+
+    <div class="marcador">
+      <div class="equipo-lado">
+        <img svImagen="equipo" [src]="d.info.escudoLocal" [alt]="d.info.equipoLocal" class="escudo">
+        <div class="equipo-nombre">{{ d.info.equipoLocal }}</div>
+      </div>
+
+      <div class="resultado-centro">
+        <div class="marcador-numeros mono">{{ d.info.resultadoLocal ?? '-' }} : {{ d.info.resultadoVisitante ?? '-' }}</div>
+        <!-- Sin esto, una eliminatoria resuelta en la tanda se lee como el empate que no fue. -->
+        @if (huboPenaltis()) {
+          <div class="marcador-penaltis mono">{{ 'n_on_penalties' | transloco: { local: d.info.penaltisLocal, visitante: d.info.penaltisVisitante } }}</div>
+        }
+        @if (d.info.resultadoLocalDescanso != null) {
+          <div class="marcador-descanso">{{ 'halftime_score' | transloco: {
+            local: d.info.resultadoLocalDescanso, visitante: d.info.resultadoVisitanteDescanso } }}</div>
+        }
+        <!-- El minuto manda cuando el partido se esta jugando: es el dato que se viene a
+             mirar. Antes aqui salia el estado en crudo ("EN_JUEGO") y ningun minuto. -->
+        <div class="estado-badge" [class.estado-badge--vivo]="d.info.estado === 'EN_JUEGO'" [class.estado-badge--finalizado]="d.info.estado === 'FINALIZADO'">
+          @if (minutoEnVivo(); as m) {
+            {{ m.clave | transloco: m.params }}
+          } @else {
+            {{ claveEstado() | transloco }}
+          }
+        </div>
+      </div>
+
+      <div class="equipo-lado">
+        <img svImagen="equipo" [src]="d.info.escudoVisitante" [alt]="d.info.equipoVisitante" class="escudo">
+        <div class="equipo-nombre">{{ d.info.equipoVisitante }}</div>
+      </div>
+    </div>
+
+    <div class="hero-meta">
+      {{ d.info.fecha | date:'d MMM yyyy, HH:mm' }}
+      <!-- El árbitro venía en el DTO desde siempre (PartidoDTO.arbitro) y no se pintaba
+           en ninguna parte, así que el dato estaba en la base sin llegar nunca a verse. -->
+      @if (d.info.arbitro) {
+        <span class="hero-arbitro" [title]="'referee' | transloco">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 3v10a6 6 0 0 0 12 0V3"/><path d="M12 19v2"/><circle cx="12" cy="9" r="1.5" fill="currentColor" stroke="none"/>
+          </svg>
+          {{ d.info.arbitro }}
+        </span>
+      }
+      @if (authService.currentUser()) {
+        <button type="button" class="btn-favorito" [disabled]="cargandoFavorito()" (click)="toggleFavorito()"
+                [title]="(esFavorito() ? 'remove_from_favourites' : 'add_to_favourites') | transloco">
+          {{ esFavorito() ? '★' : '☆' }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>{{ 'prediction' | transloco }}</h2>
+    @if (!authService.currentUser()) {
+      <p class="vacio">{{ 'log_in_to_see_the_prediction_for_this_match' | transloco }}</p>
+    } @else if (errorPrediccion()) {
+      <p class="error-message">{{ errorPrediccion() }}</p>
+    } @else if (prediccionEnVivo(); as p) {
+      <div class="pred-barra">
+        <div class="pred-seg pred-seg--local" [style.width.%]="p.probabilidades.victoriaLocal">{{ p.probabilidades.victoriaLocal }}%</div>
+        <div class="pred-seg pred-seg--empate" [style.width.%]="p.probabilidades.empate">{{ p.probabilidades.empate }}%</div>
+        <div class="pred-seg pred-seg--visitante" [style.width.%]="p.probabilidades.victoriaVisitante">{{ p.probabilidades.victoriaVisitante }}%</div>
+      </div>
+      <div class="pred-leyenda">
+        <span><i class="dot dot--local"></i>{{ d.info.equipoLocal }}</span>
+        <span><i class="dot dot--empate"></i>{{ 'draw' | transloco }}</span>
+        <span><i class="dot dot--visitante"></i>{{ d.info.equipoVisitante }}</span>
+      </div>
+      <p class="sub">Minuto {{ p.minutoActual }} · marcador {{ p.golesLocalActuales }}-{{ p.golesVisitanteActuales }}</p>
+    } @else if (prediccionPrePartido(); as p) {
+      <div class="pred-barra">
+        <div class="pred-seg pred-seg--local" [style.width.%]="p.victoriaLocal">{{ p.victoriaLocal }}%</div>
+        <div class="pred-seg pred-seg--empate" [style.width.%]="p.empate">{{ p.empate }}%</div>
+        <div class="pred-seg pred-seg--visitante" [style.width.%]="p.victoriaVisitante">{{ p.victoriaVisitante }}%</div>
+      </div>
+      <div class="pred-leyenda">
+        <span><i class="dot dot--local"></i>{{ d.info.equipoLocal }}</span>
+        <span><i class="dot dot--empate"></i>{{ 'draw' | transloco }}</span>
+        <span><i class="dot dot--visitante"></i>{{ d.info.equipoVisitante }}</span>
+      </div>
+    } @else {
+      <p class="vacio">{{ 'loading_prediction' | transloco }}</p>
+    }
+  </section>
+
+  <!-- ============================================================== Cuotas ==== -->
+  <!-- Se piden al backend, que a su vez las pide a API-Football solo si el partido está en
+       la ventana en la que existen (14 días antes, 7 después) y las cachea 3h. Si no hay,
+       esta tarjeta no se pinta: mejor eso que una sección vacía. -->
+  @if (cuotas()?.hayCuotas) {
+    <section class="card">
+      <h2>{{ 'odds' | transloco }}</h2>
+      <div class="cuotas">
+        @for (mercado of cuotas()!.mercados; track mercado.clave) {
+          <div class="cuota-mercado">
+            <div class="cuota-titulo">{{ mercado.nombre }}</div>
+            <div class="cuota-opciones">
+              @for (opcion of mercado.opciones; track opcion.etiqueta) {
+                <div class="cuota-opcion">
+                  <span class="cuota-etiqueta">{{ opcion.etiqueta }}</span>
+                  <span class="cuota-valor mono">{{ opcion.cuota }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+      <p class="sub cuotas-pie">
+        Cuotas de {{ cuotas()!.casa }}@if (cuotas()!.actualizado) { <span>, actualizadas el {{ cuotas()!.actualizado | date:'d MMM, HH:mm' }}</span> }{{ 'they_are_for_information_only_there_is_no_be' | transloco }}
+      </p>
+    </section>
+  }
+
+  <!-- ================================================================ Bajas ==== -->
+  @if (bajas().length > 0) {
+    <section class="card">
+      <h2>{{ 'absences_and_doubts' | transloco }}</h2>
+      <div class="bajas">
+        @for (lado of [{nombre: d.info.equipoLocal, lista: bajasLocal()}, {nombre: d.info.equipoVisitante, lista: bajasVisitante()}]; track lado.nombre) {
+          @if (lado.lista.length > 0) {
+            <div class="bajas-equipo">
+              <h3 class="banquillo-titulo">{{ lado.nombre }}</h3>
+              <ul class="banquillo-lista">
+                @for (b of lado.lista; track b.idJugador ?? b.nombre) {
+                  <li class="banquillo-fila">
+                    <a class="banquillo-enlace" [routerLink]="['/estadisticas/jugadores', b.idJugador]">
+                      <img svImagen="jugador" [src]="b.foto" [alt]="b.nombre" class="suplente-foto">
+                      <span class="banquillo-nombre">{{ b.nombre }}</span>
+                    </a>
+                    <span class="baja-motivo">{{ b.motivo }}</span>
+                    <!-- La API distingue "no juega" de "duda", y esa diferencia es justo lo
+                         que le interesa a quien mira la previa. -->
+                    <span class="baja-tipo" [class.baja-tipo--duda]="!b.baja">
+                      {{ (b.baja ? 'absence' : 'doubt') | transloco }}
+                    </span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        }
+      </div>
+    </section>
+  }
+
+  <!-- ======================================================== Alineaciones ==== -->
+  <!-- Nada de esto cuesta una petición a API-Football: los onces salen de las
+       estadísticas de jugador que ya están ingeridas (titular + posicion_campo),
+       así que funciona igual en un partido de hoy que en uno de 2010. -->
+  <section class="card">
+    <h2>{{ 'line_ups' | transloco }}</h2>
+
+    @if (!alineaciones()?.hayDatos) {
+      <p class="vacio">{{ 'there_is_still_no_record_of_who_played_this_' | transloco }}</p>
+      @if (d.info.coberturaAlineaciones === false) {
+        <p class="nota-cobertura">{{ 'coverage_no_lineups' | transloco }}</p>
+      }
+    } @else {
+      <div class="campo">
+        <div class="campo-equipo">
+          <div class="campo-equipo-nombre">
+            <img svImagen="equipo" [src]="alineaciones()?.local?.escudo" alt="" class="escudo-mini">
+            {{ alineaciones()?.local?.nombre }}
+            @if (alineaciones()?.local?.formacion; as f) {
+              <span class="formacion mono" [title]="'worked_out_by_counting_the_starters_in_each_' | transloco">{{ f }}</span>
+            }
+          </div>
+        </div>
+
+        @for (fila of lineasDe(alineaciones()?.local); track fila.linea) {
+          <div class="campo-linea">
+            @for (j of fila.jugadores; track j.idJugador ?? j.nombre) {
+              <ng-container *ngTemplateOutlet="fichaJugador; context: {$implicit: j}"></ng-container>
+            }
+          </div>
+        }
+        @if (titularesSinLinea(alineaciones()?.local).length > 0) {
+          @if (sinDibujo(alineaciones()?.local)) {
+            <p class="campo-aviso">{{ 'we_know_who_played_in_this_match_but_not_in_' | transloco }}</p>
+          }
+          <div class="campo-linea" [class.campo-linea--lista]="sinDibujo(alineaciones()?.local)">
+            @for (j of titularesSinLinea(alineaciones()?.local); track j.idJugador ?? j.nombre) {
+              <ng-container *ngTemplateOutlet="fichaJugador; context: {$implicit: j}"></ng-container>
+            }
+          </div>
+        }
+
+        <div class="campo-medio"><span class="campo-circulo"></span></div>
+
+        @for (fila of lineasDe(alineaciones()?.visitante, true); track fila.linea) {
+          <div class="campo-linea">
+            @for (j of fila.jugadores; track j.idJugador ?? j.nombre) {
+              <ng-container *ngTemplateOutlet="fichaJugador; context: {$implicit: j}"></ng-container>
+            }
+          </div>
+        }
+        @if (titularesSinLinea(alineaciones()?.visitante).length > 0) {
+          @if (sinDibujo(alineaciones()?.visitante)) {
+            <p class="campo-aviso">{{ 'we_know_who_played_in_this_match_but_not_in_' | transloco }}</p>
+          }
+          <div class="campo-linea" [class.campo-linea--lista]="sinDibujo(alineaciones()?.visitante)">
+            @for (j of titularesSinLinea(alineaciones()?.visitante); track j.idJugador ?? j.nombre) {
+              <ng-container *ngTemplateOutlet="fichaJugador; context: {$implicit: j}"></ng-container>
+            }
+          </div>
+        }
+
+        <div class="campo-equipo campo-equipo--abajo">
+          <div class="campo-equipo-nombre">
+            <img svImagen="equipo" [src]="alineaciones()?.visitante?.escudo" alt="" class="escudo-mini">
+            {{ alineaciones()?.visitante?.nombre }}
+            @if (alineaciones()?.visitante?.formacion; as f) {
+              <span class="formacion mono" [title]="'worked_out_by_counting_the_starters_in_each_' | transloco">{{ f }}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Entrenadores y árbitro: los tres llevan a su ficha. -->
+      <div class="staff">
+        @for (lado of [alineaciones()?.local, alineaciones()?.visitante]; track $index) {
+          @if (lado?.entrenador; as e) {
+            <div class="staff-ficha">
+              <a class="staff-enlace" [routerLink]="['/estadisticas/entrenadores', e.idEntrenador]">
+                <img svImagen="entrenador" [src]="e.foto" [alt]="e.nombre" class="staff-foto">
+                <span class="staff-texto">
+                  <span class="staff-rol">Entrenador · {{ lado?.nombre }}</span>
+                  <span class="staff-nombre">{{ e.nombre }}</span>
+                  @if (lado?.entrenadorEsElActual) {
+                    <span class="staff-aviso" [title]="'there_is_no_record_of_who_was_managing_the_t' | transloco">
+                      {{ 'current_coach_of_the_club' | transloco }}
+                    </span>
+                  }
+                </span>
+              </a>
+            </div>
+          }
+        }
+
+        @if (alineaciones()?.arbitro; as a) {
+          <div class="staff-ficha">
+            <a class="staff-enlace" [routerLink]="['/estadisticas/arbitros', a.idArbitro]">
+              <span class="staff-silbato" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M6 3v10a6 6 0 0 0 12 0V3"/><path d="M12 19v2"/><circle cx="12" cy="9" r="1.5" fill="currentColor" stroke="none"/>
+                </svg>
+              </span>
+              <span class="staff-texto">
+                <span class="staff-rol">{{ 'referee' | transloco }}@if (a.pais) { <span> · {{ a.pais }}</span> }</span>
+                <span class="staff-nombre">{{ a.nombre }}</span>
+              </span>
+            </a>
+          </div>
+        }
+      </div>
+
+      <!-- Banquillos -->
+      <div class="banquillos">
+        @for (lado of [alineaciones()?.local, alineaciones()?.visitante]; track $index) {
+          @if (lado && lado.suplentes.length > 0) {
+            <div class="banquillo">
+              <h3 class="banquillo-titulo">Suplentes · {{ lado.nombre }}</h3>
+              <ul class="banquillo-lista">
+                @for (j of lado.suplentes; track j.idJugador ?? j.nombre) {
+                  <li class="banquillo-fila">
+                    <a class="banquillo-enlace" [routerLink]="['/estadisticas/jugadores', j.idJugador]">
+                      <img svImagen="jugador" [src]="j.foto" [alt]="j.nombre" class="suplente-foto">
+                      <span class="mono banquillo-dorsal">{{ j.dorsal ?? '–' }}</span>
+                      <span class="banquillo-nombre">{{ j.nombre }}</span>
+                    </a>
+                    @if (j.minutosJugados) {
+                      <span class="mono banquillo-min" [title]="'minutes_played' | transloco">{{ j.minutosJugados }}&#39;</span>
+                    } @else {
+                      <span class="banquillo-min banquillo-min--sinjugar" [title]="'did_not_play' | transloco">–</span>
+                    }
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        }
+      </div>
+
+    }
+  </section>
+
+  <!-- Plantilla reutilizada arriba: la ficha del campo. Va como ng-template y no copiada
+       cuatro veces porque el mismo trozo se usa en los dos onces y en los dos banquillos. -->
+  <ng-template #fichaJugador let-j>
+    <div class="jugador">
+      <a class="jugador-foto-wrap" [routerLink]="['/estadisticas/jugadores', j.idJugador]" [title]="j.nombre">
+        <img svImagen="jugador" [src]="j.foto" [alt]="j.nombre" class="jugador-foto">
+        @if (j.dorsal) { <span class="jugador-dorsal mono">{{ j.dorsal }}</span> }
+      </a>
+      <span class="jugador-nombre">{{ j.nombre }}</span>
+      <span class="jugador-marcas">
+        @if (j.goles) { <span [title]="'goals' | transloco">⚽{{ j.goles > 1 ? '×' + j.goles : '' }}</span> }
+        @if (j.tarjetasAmarillas) { <span [title]="'yellow_cards' | transloco">🟨</span> }
+        @if (j.tarjetasRojas) { <span [title]="'red_cards' | transloco">🟥</span> }
+      </span>
+    </div>
+  </ng-template>
+
+  <section class="card">
+    <h2>{{ 'team_statistics' | transloco }}</h2>
+    @if (!statsLocal() && !statsVisitante()) {
+      <p class="vacio">{{ 'no_statistics_yet' | transloco }}</p>
+      @if (d.info.coberturaStatsPartido === false) {
+        <p class="nota-cobertura">{{ 'coverage_no_stats' | transloco }}</p>
+      }
+    } @else {
+      <div class="stats-leyenda">
+        <span><i class="dot dot--local"></i>{{ d.info.equipoLocal }}</span>
+        <span><i class="dot dot--visitante"></i>{{ d.info.equipoVisitante }}</span>
+      </div>
+
+      <div class="posesion-wrap">
+        <div class="donut" [style.background]="gradientePosesion(statsLocal()?.posesion)">
+          <div class="donut-hueco">
+            <span class="mono">{{ statsLocal()?.posesion ?? 0 }}%</span>
+            <span class="donut-label">{{ 'possession' | transloco }}</span>
+            <span class="mono">{{ statsVisitante()?.posesion ?? 0 }}%</span>
+          </div>
+        </div>
+      </div>
+
+      @for (s of [
+        {label: 'Tiros', a: statsLocal()?.tiros, b: statsVisitante()?.tiros},
+        {label: 'A puerta', a: statsLocal()?.tirosPuerta, b: statsVisitante()?.tirosPuerta},
+        {label: 'Córners', a: statsLocal()?.corners, b: statsVisitante()?.corners},
+        {label: 'Faltas', a: statsLocal()?.faltas, b: statsVisitante()?.faltas},
+        {label: 'Tarjetas amarillas', a: statsLocal()?.tarjetasAmarillas, b: statsVisitante()?.tarjetasAmarillas},
+        {label: 'Tarjetas rojas', a: statsLocal()?.tarjetasRojas, b: statsVisitante()?.tarjetasRojas}
+      ]; track s.label) {
+        <div class="stat-fila">
+          <span class="stat-valor mono">{{ s.a ?? 0 }}</span>
+          <div class="stat-barra">
+            <div class="stat-barra-local" [style.width.%]="pctBarraLocal(s.a, s.b)"></div>
+            <div class="stat-barra-visitante" [style.width.%]="100 - pctBarraLocal(s.a, s.b)"></div>
+          </div>
+          <span class="stat-valor mono">{{ s.b ?? 0 }}</span>
+          <span class="stat-label">{{ s.label }}</span>
+        </div>
+      }
+    }
+  </section>
+
+  <section class="card">
+    <h2>{{ 'events' | transloco }}</h2>
+    @if (d.eventos.length === 0) {
+      <p class="vacio">{{ 'no_events_yet' | transloco }}</p>
+      @if (d.info.coberturaEventos === false) {
+        <p class="nota-cobertura">{{ 'coverage_no_events' | transloco }}</p>
+      }
+    } @else {
+      <div class="timeline-leyenda">
+        <span class="leyenda-equipo leyenda-equipo--local">{{ d.info.equipoLocal }}</span>
+        <span class="leyenda-equipo leyenda-equipo--visitante">{{ d.info.equipoVisitante }}</span>
+      </div>
+      @for (grupo of gruposEventos(); track grupo.titulo) {
+        <div class="periodo-header">{{ grupo.titulo }}</div>
+        <ul class="timeline-2col">
+          @for (e of grupo.eventos; track e.idEvento) {
+            <li class="timeline-2col-row">
+              <div class="lado lado--local">
+                @if (esEventoLocal(e)) {
+                  <span class="timeline-desc">
+                    <strong>{{ e.nombreJugadorPrincipal }}</strong>
+                    @if (e.nombreJugadorSecundario) { <span class="sub"> ({{ e.nombreJugadorSecundario }})</span> }
+                    <br><span class="sub">{{ e.detalle }}</span>
+                  </span>
+                  <img svImagen="equipo" [src]="e.logoEquipo" alt="" class="escudo-mini">
+                }
+              </div>
+
+              <div class="minuto-centro">
+                <span class="timeline-icono">{{ iconoEvento(e.tipoEvento, e.detalle) }}</span>
+                <span class="mono timeline-minuto">{{ e.tiempoMinuto }}{{ e.tiempoExtra ? '+' + e.tiempoExtra : '' }}'</span>
+              </div>
+
+              <div class="lado lado--visitante">
+                @if (!esEventoLocal(e)) {
+                  <img svImagen="equipo" [src]="e.logoEquipo" alt="" class="escudo-mini">
+                  <span class="timeline-desc">
+                    <strong>{{ e.nombreJugadorPrincipal }}</strong>
+                    @if (e.nombreJugadorSecundario) { <span class="sub"> ({{ e.nombreJugadorSecundario }})</span> }
+                    <br><span class="sub">{{ e.detalle }}</span>
+                  </span>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </section>
+
+  <section class="card">
+    <h2>{{ 'head_to_head' | transloco }}</h2>
+    <ul class="lista">
+      @for (h of h2h(); track h.idPartido) {
+        <li class="partido-row" [routerLink]="['/partidos', h.idPartido]" [queryParams]="{local: h.idEquipoLocal, visitante: h.idEquipoVisitante}">
+          <span class="mono partido-fecha">{{ h.fecha | date:'d MMM yyyy' }}</span>
+          <span class="partido-encuentro">
+            <img svImagen="equipo" [src]="h.escudoLocal" alt="" class="escudo-mini">
+            {{ h.equipoLocal }}
+            <span class="mono resultado">{{ h.resultadoLocal }} - {{ h.resultadoVisitante }}</span>
+            {{ h.equipoVisitante }}
+            <img svImagen="equipo" [src]="h.escudoVisitante" alt="" class="escudo-mini">
+          </span>
+        </li>
+      } @empty {
+        <li class="vacio">{{ 'no_history_between_these_two_teams' | transloco }}</li>
+      }
+    </ul>
+    <sv-paginador [pagina]="paginaH2h()" [totalPaginas]="totalPaginasH2h()"
+                  etiqueta="enfrentamientos directos" (cambio)="cargarH2h($event)" />
+  </section>
+}

@@ -1,0 +1,54 @@
+## Reverse proxy + TLS para el despliegue real de scorevia.net.
+##
+## No se usa en desarrollo local -- solo entra en juego con el overlay
+## docker-compose.prod.yml (ver ese archivo y docs/infraestructura.md). Caddy obtiene y
+## renueva el certificado Let's Encrypt automáticamente para el dominio de abajo; no hace
+## falta configurar nada de ACME a mano.
+##
+## Requisito para que esto sea seguro de verdad: ni el puerto del Gateway (8085) ni el del
+## frontend (4000) deben publicarse hacia fuera en el host de producción -- solo Caddy debe
+## ser alcanzable desde internet (puertos 80/443). Así es como ClienteIpResolver.java asume
+## que se despliega (ver su javadoc): si el Gateway fuera alcanzable directamente, cualquiera
+## podría saltarse este proxy y falsificar X-Forwarded-For. De eso se encarga el
+## `ports: !reset []` de docker-compose.prod.yml.
+##
+## Todo el tráfico de negocio del backend vive bajo /api/v1/** -- todo lo demás es la
+## SPA/SSR de Angular. La documentación
+## (/v3/api-docs/**) NO se publica: solo se alcanza desde el propio servidor.
+
+{
+	# Let's Encrypt avisa aquí si una renovación falla. Va por variable de entorno y no
+	# escrito a fuego porque es una dirección personal y este repo se comparte.
+	# Si no se define, Caddy pide el certificado igual, solo que sin avisos de caducidad.
+	email {$ACME_EMAIL}
+}
+
+scorevia.net {
+	# Comprime HTML del SSR y las respuestas JSON del Gateway, que son lo más gordo que
+	# manda esta web (una jornada entera de partidos con sus eventos son cientos de KB).
+	encode zstd gzip
+
+	header {
+		# El dominio es nuevo y solo se sirve por HTTPS, así que se puede exigir desde el
+		# principio. Sin `preload` a propósito: eso es una lista de la que cuesta salir.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# Solo lo que la web necesita de verdad. `/v3/api-docs/*` estuvo aquí y se ha quitado:
+	# no expone datos, pero sí el mapa completo de la API (todas las rutas, parámetros y
+	# formas de respuesta) a cualquiera que pase, y en producción no le hace falta a nadie.
+	# Sigue disponible desde una shell del propio servidor, por 127.0.0.1:8085, que es donde
+	# se consulta cuando de verdad se necesita.
+	@backend path /api/v1/*
+	reverse_proxy @backend api-gateway:8085
+
+	reverse_proxy frontend:4000
+}
+
+# La gente escribe "www." por costumbre, y sin esto se encontraría un error de certificado
+# en vez de la web. Requiere que el registro DNS de www exista igual que el de la raíz.
+www.scorevia.net {
+	redir https://scorevia.net{uri} permanent
+}

@@ -1,0 +1,74 @@
+<div class="entrenador-detail">
+  @if (cargando()) {
+    <sv-cargando [filas]="5" />
+  } @else if (error()) {
+    <p class="error-message">{{ error() }}</p>
+  } @else if (entrenador(); as tecnico) {
+    <div class="hero">
+      <img svImagen="entrenador" [src]="tecnico.foto" [alt]="tecnico.nombre" class="foto">
+      <div>
+        <h1>{{ tecnico.nombre }}</h1>
+        <p class="meta">{{ tecnico.nacionalidad }} @if (tecnico.edad) { · {{ 'age_years' | transloco: { n: tecnico.edad } }} }</p>
+        @if (tecnico.equipo) {
+          <a [routerLink]="['/estadisticas/equipos', tecnico.equipo.idEquipo]" class="equipo-actual-link">
+            <img svImagen="equipo" [src]="tecnico.equipo.logo" alt="" class="escudo-mini">
+            Equipo actual: {{ tecnico.equipo.nombre }}
+          </a>
+        }
+      </div>
+    </div>
+
+    <section>
+      <h2>{{ 'clubs_coached' | transloco }}</h2>
+      <ul class="lista">
+        @for (h of clubesPaginados.visibles(); track h.idEquipo + '-' + h.temporada) {
+          <li class="club-row" [routerLink]="['/estadisticas/equipos', h.idEquipo]">
+            <img svImagen="equipo" [src]="h.escudoEquipo" [alt]="h.nombreEquipo" class="escudo-mini">
+            <span class="lista-titulo">{{ h.nombreEquipo }}</span>
+            <span class="mono lista-sub">{{ h.temporada }}</span>
+          </li>
+        } @empty {
+          <li class="vacio">{{ 'no_club_history_on_record_yet' | transloco }}</li>
+        }
+      </ul>
+      <sv-paginador [pagina]="clubesPaginados.pagina()" [totalPaginas]="clubesPaginados.totalPaginas()"
+                    etiqueta="clubes" (cambio)="clubesPaginados.pagina.set($event)" />
+    </section>
+
+    <section>
+      <h2>{{ 'honours' | transloco }}</h2>
+      <!-- Misma línea del tiempo que en jugador y equipo, para que las tres fichas cuenten
+           lo mismo de la misma forma. Ya con datos: el 2026-09-08 se preguntó por los 27.123
+           entrenadores y 9.622 tienen palmarés (41.296 trofeos). Que un técnico salga sin
+           nada ya no significa "falta por ingerir", significa que no ha ganado nada. -->
+      <sv-linea-trofeos [trofeos]="trofeos()" />
+
+      <h3 class="subtitulo-palmares">{{ 'by_competition' | transloco }}</h3>
+      <div class="trofeos-grid">
+        @for (t of trofeosAgrupados(); track t.competicion + '__' + t.pais) {
+          <div class="trofeo-card" [title]="t.temporadas.join(', ')">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="trofeo-icono">
+              <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"></path>
+              <path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4 4 4.3M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4-4 4.3"></path>
+            </svg>
+            <div>
+              <div class="trofeo-competicion">
+                {{ t.competicion }}
+                @if (t.temporadas.length > 1) { <span class="trofeo-contador">x{{ t.temporadas.length }}</span> }
+              </div>
+              <div class="trofeo-meta">{{ t.pais }}</div>
+            </div>
+          </div>
+        } @empty {
+          <p class="vacio">{{ 'no_trophies_on_record' | transloco }}</p>
+          <!-- El barrido del 2026-09-08 cubrió a los 27.123 entrenadores de entonces, pero
+               los que entran después nacen sin preguntar: para esos, "sin títulos" es "sin
+               mirar", y decirlo cuesta menos que equivocarse. -->
+          @if (tecnico.palmaresConsultado === false) {
+            <p class="nota-cobertura">{{ 'coverage_honours_not_checked' | transloco }}</p>
+          }
+        }
+      </div>
+    </section>
+  }
+</div>

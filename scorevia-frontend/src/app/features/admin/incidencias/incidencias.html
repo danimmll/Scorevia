@@ -1,0 +1,33 @@
+<h1>{{ 'technical_issues' | transloco }}</h1>
+
+@if (error()) { <p class="error-message">{{ error() }}</p> }
+
+<div class="filtros">
+  <input type="text" [placeholder]="'filter_by_class_e_g_usuarioserviceimpl' | transloco" [(ngModel)]="filtroClase" (keyup.enter)="filtrar()" [attr.aria-label]="'filter_by_class_e_g_usuarioserviceimpl' | transloco">
+  <input type="text" [placeholder]="'filter_by_user_email' | transloco" [(ngModel)]="filtroUsuario" (keyup.enter)="filtrar()" [attr.aria-label]="'filter_by_user_email' | transloco">
+  <input type="text" [placeholder]="'filter_by_method_e_g_authenticationentrypoin' | transloco" [(ngModel)]="filtroMetodo" (keyup.enter)="filtrar()" [attr.aria-label]="'filter_by_method_e_g_authenticationentrypoin' | transloco">
+  <button (click)="filtrar()">{{ 'filter' | transloco }}</button>
+  <button type="button" (click)="limpiarFiltros()">{{ 'clear_filter' | transloco }}</button>
+</div>
+
+<div class="tabla-scroll">
+  <table>
+    <thead><tr><th>{{ 'date' | transloco }}</th><th>Endpoint</th><th>{{ 'type' | transloco }}</th><th>{{ 'class' | transloco }}</th><th>{{ 'method' | transloco }}</th><th>{{ 'user' | transloco }}</th></tr></thead>
+    <tbody>
+      @for (i of incidencias(); track i.idIncidencia) {
+        <tr>
+          <td class="mono">{{ i.fecha | date:'dd/MM HH:mm' }}</td>
+          <td>{{ i.endpoint }}</td>
+          <td>{{ i.tipo }}</td>
+          <td>{{ i.clase }}</td>
+          <td>{{ i.metodo }}</td>
+          <td>{{ i.usuarioContexto }}</td>
+        </tr>
+      } @empty {
+        <tr><td colspan="6">{{ 'no_issues' | transloco }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<sv-paginador [pagina]="pagina()" [totalPaginas]="totalPaginas()" (cambio)="cargarPagina($event)" />

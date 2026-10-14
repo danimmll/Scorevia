@@ -1,0 +1,70 @@
+:host {
+  position: relative;
+  display: inline-block;
+}
+
+// Mismo aspecto que los <select> nativos que quedan a su lado en las barras de filtros, para
+// que no cante que uno de los controles es otra cosa.
+.selector-pais-boton {
+  display: flex; align-items: center; gap: var(--sv-space-3);
+  min-width: 170px; max-width: 240px;
+  padding: var(--sv-space-2) var(--sv-space-3);
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+  color: var(--sv-text-primary);
+  font-family: inherit; font-size: var(--sv-text-md);
+  cursor: pointer;
+}
+.selector-pais-boton:hover { border-color: var(--sv-border-strong); }
+.selector-pais-boton svg { margin-left: auto; flex-shrink: 0; color: var(--sv-text-muted); }
+
+.selector-pais-valor { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.selector-pais-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+  width: max(100%, 240px);
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius-md);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+  padding: var(--sv-space-2);
+}
+
+.selector-pais-buscar {
+  width: 100%; box-sizing: border-box;
+  padding: var(--sv-space-2) var(--sv-space-2); margin-bottom: var(--sv-space-2);
+  background: var(--sv-surface-2);
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius-sm);
+  color: var(--sv-text-primary);
+  font-family: inherit; font-size: var(--sv-text-sm);
+}
+.selector-pais-buscar:focus { outline: none; border-color: var(--sv-accent); }
+
+// Alto acotado: la gracia de esto es no tener que recorrer cien países, así que la lista
+// tampoco debe ocupar la pantalla entera.
+.selector-pais-lista {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 260px; overflow-y: auto;
+}
+
+.selector-pais-grupo {
+  padding: var(--sv-space-2) var(--sv-space-2) var(--sv-space-1);
+  font-size: var(--sv-text-xs); text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sv-text-muted);
+}
+
+.selector-pais-opcion {
+  display: block; width: 100%;
+  padding: var(--sv-space-2) var(--sv-space-2);
+  background: none; border: none; border-radius: var(--sv-radius-sm);
+  color: var(--sv-text-secondary);
+  font-family: inherit; font-size: var(--sv-text-sm); text-align: left;
+  cursor: pointer;
+}
+.selector-pais-opcion:hover,
+.selector-pais-opcion.activo { background: var(--sv-surface-hover); color: var(--sv-text-primary); }
+.selector-pais-opcion.elegido { color: var(--sv-accent-text); font-weight: 600; }
+.selector-pais-opcion--todos { color: var(--sv-text-primary); }
+
+.selector-pais-vacio { padding: var(--sv-space-3) var(--sv-space-2); font-size: var(--sv-text-sm); color: var(--sv-text-muted); }

@@ -1,0 +1,405 @@
+# Tope al log de stdout, para todos los servicios de este fichero.
+#
+# El driver json-file de Docker NO rota nada por defecto: el fichero crece hasta llenar el
+# disco, y cuando el disco se llena no se cae un servicio -- se caen todos, la base de datos
+# incluida. Medido el 2026-09-10 en esta misma maquina, sin un solo usuario delante:
+# estadisticas habia escrito 1.314 MB en 119 minutos (16 GB/dia), el 99,99% del LoggingAspect.
+# Ese ruido ya se corto bajandolo a DEBUG, pero el tope va igual: es la red de seguridad para
+# la proxima vez que algo se ponga a hablar de mas.
+#
+# 20 MB x 5 ficheros = 100 MB por contenedor como mucho, ocho contenedores = 800 MB.
+x-logging: &logging-por-defecto
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  postgres-db:
+    logging: *logging-por-defecto
+    image: postgres:15-alpine
+    restart: always
+    # Postgres no es una JVM y aqui el tope no es para que se ajuste solo, sino para que no
+    # se lleve por delante a los demas. Va holgado a proposito: los 1 GB de shm_size cuentan
+    # dentro de este limite y NO son reclamables, asi que un tope justo se traduciria en que
+    # el motor muere en mitad de una consulta grande en vez de ir mas lento.
+    mem_limit: 3g
+    ports:
+      - "127.0.0.1:5433:5432"
+    # Docker da 64 MB de /dev/shm por defecto, y Postgres monta ahí la memoria que
+    # comparten los workers de una consulta paralela. Con eventos_partido (8,7M filas)
+    # y estadisticas_jugador_partido (4,8M) cualquier agregado grande se pasaba de esos
+    # 64 MB y moría con "DiskFull: could not resize shared memory segment", que no es
+    # falta de disco sino de shm y despista muchísimo.
+    shm_size: 1gb
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - backend
+
+  eureka-server:
+    logging: *logging-por-defecto
+    build: ./EurekaServer
+    restart: unless-stopped
+    # Tope de RAM del contenedor. Sin el, cada JVM se cree con 7,6 GB delante y dimensiona
+    # su heap al 25% de eso (1,9 GB cada una, por seis servicios): la VM de WSL se hincha
+    # sola aunque no haya trabajo. Con el tope puesto, la JVM ve el limite real y se ajusta.
+    # Medido el 2026-09-08 con docker stats; cada valor lleva un tercio de colchon.
+    mem_limit: 640m
+    ports:
+      - "127.0.0.1:8761:8761"
+    environment:
+      # UseSerialGC en los servicios pequenos: G1 reserva estructuras por nucleo (aqui 8) y
+      # se lleva 80-100 MB de RSS que en un servicio que atiende cuatro peticiones no
+      # compensan. MaxRAMPercentage sustituye al 25% por defecto, que sobre un tope de
+      # 640 MB dejaria el heap en 160 MB y a Spring justo de sitio.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k
+      SERVER_PORT: 8761
+      SPRING_APPLICATION_NAME: eureka-server
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: false
+      EUREKA_CLIENT_FETCH_REGISTRY: false
+      EUREKA_INSTANCE_HOSTNAME: eureka-server
+      # ":-eureka", no solo ":eureka" ni un valor sin default: si EUREKA_USERNAME/PASSWORD
+      # no están exportadas en el entorno donde corre "docker compose up" (hoy no lo están
+      # en el Jenkinsfile), Compose las sustituye por string VACÍO, no por "ausente". Un
+      # username vacío no es lo mismo que uno ausente: application.yml hace
+      # spring.security.user.name: "${EUREKA_USERNAME:eureka}", y ese default de Spring solo
+      # aplica si la propiedad falta del todo -- con una vacía, Spring intenta crear el
+      # InMemoryUserDetailsManager con username="" y la app entera crashea al arrancar
+      # (IllegalArgumentException: "Cannot pass null or empty values to constructor"). El
+      # ":-eureka" de aquí evita que ese vacío llegue siquiera al contenedor. Estas mismas
+      # credenciales por defecto DEBEN sobreescribirse (vía Jenkins credentials) en cualquier
+      # despliegue real -- ver [[pending-architecture-decisions]] en la memoria del proyecto.
+      EUREKA_USERNAME: ${EUREKA_USERNAME:-eureka}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-eureka}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Sin start_period, el primer chequeo (a los 0s) ya cuenta como fallo si el puerto
+      # todavía no está escuchando. Y 45s tampoco bastaban: arrancan los seis JVM a la vez
+      # compitiendo por CPU, y en frío tardan entre 220s (gateway) y 355s (estadísticas),
+      # así que el contenedor agotaba los reintentos y se marcaba "unhealthy" mucho antes
+      # de estar listo -- lo que además hace fallar a todo el que dependa de él con
+      # condition: service_healthy. start_period no cuenta los fallos: hay que darle margen.
+      start_period: 420s
+    volumes:
+      - microservices_logs:/logs
+    networks:
+      - backend
+
+  api-gateway:
+    logging: *logging-por-defecto
+    build: ./Gateway
+    restart: unless-stopped
+    # Tope de RAM del contenedor. Sin el, cada JVM se cree con 7,6 GB delante y dimensiona
+    # su heap al 25% de eso (1,9 GB cada una, por seis servicios): la VM de WSL se hincha
+    # sola aunque no haya trabajo. Con el tope puesto, la JVM ve el limite real y se ajusta.
+    # Medido el 2026-09-08 con docker stats; cada valor lleva un tercio de colchon.
+    mem_limit: 640m
+    ports:
+      - "8085:8085"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    environment:
+      # UseSerialGC en los servicios pequenos: G1 reserva estructuras por nucleo (aqui 8) y
+      # se lleva 80-100 MB de RSS que en un servicio que atiende cuatro peticiones no
+      # compensan. MaxRAMPercentage sustituye al 25% por defecto, que sobre un tope de
+      # 640 MB dejaria el heap en 160 MB y a Spring justo de sitio.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k
+      SPRING_APPLICATION_NAME: api-gateway
+      INCIDENCIAS_INTERNAL_SECRET: ${INCIDENCIAS_INTERNAL_SECRET}
+      # Sin esto, application.yml cae a su default "http://localhost:4200" en TODO despliegue
+      # real (Compose no reenvía vars del host que no estén listadas acá), y el navegador
+      # rechaza por CORS cualquier llamada autenticada (cookies) desde el frontend real.
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8085/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Arrancan los seis JVM a la vez y compiten por CPU: en frío tardan entre 220 s
+      # (gateway) y 355 s (estadísticas). Con los 45 s de antes el contenedor agotaba
+      # los reintentos y se marcaba "unhealthy" mucho antes de estar listo, lo que
+      # además hace fallar a quien dependa de él con condition: service_healthy.
+      # start_period no cuenta los fallos: solo hay que darle margen de sobra.
+      start_period: 420s
+    volumes:
+      - microservices_logs:/logs
+    networks:
+      - backend
+
+  incidencias:
+    logging: *logging-por-defecto
+    build: ./Microservicio-incidencias
+    restart: unless-stopped
+    # Tope de RAM del contenedor. Sin el, cada JVM se cree con 7,6 GB delante y dimensiona
+    # su heap al 25% de eso (1,9 GB cada una, por seis servicios): la VM de WSL se hincha
+    # sola aunque no haya trabajo. Con el tope puesto, la JVM ve el limite real y se ajusta.
+    # Medido el 2026-09-08 con docker stats; cada valor lleva un tercio de colchon.
+    mem_limit: 640m
+    expose:
+      - "8081"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    environment:
+      # UseSerialGC en los servicios pequenos: G1 reserva estructuras por nucleo (aqui 8) y
+      # se lleva 80-100 MB de RSS que en un servicio que atiende cuatro peticiones no
+      # compensan. MaxRAMPercentage sustituye al 25% por defecto, que sobre un tope de
+      # 640 MB dejaria el heap en 160 MB y a Spring justo de sitio.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${INCIDENCIAS_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${INCIDENCIAS_DB_PASS}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      JWT_SECRET_KEY: ${JWT_KEY}
+      INCIDENCIAS_INTERNAL_SECRET: ${INCIDENCIAS_INTERNAL_SECRET}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Arrancan los seis JVM a la vez y compiten por CPU: en frío tardan entre 220 s
+      # (gateway) y 355 s (estadísticas). Con los 45 s de antes el contenedor agotaba
+      # los reintentos y se marcaba "unhealthy" mucho antes de estar listo, lo que
+      # además hace fallar a quien dependa de él con condition: service_healthy.
+      # start_period no cuenta los fallos: solo hay que darle margen de sobra.
+      start_period: 420s
+    volumes:
+      - microservices_logs:/logs
+    networks:
+      - backend
+
+  usuariosroles:
+    logging: *logging-por-defecto
+    build: ./Microservicio-usuarios-roles
+    restart: unless-stopped
+    # Tope de RAM del contenedor. Sin el, cada JVM se cree con 7,6 GB delante y dimensiona
+    # su heap al 25% de eso (1,9 GB cada una, por seis servicios): la VM de WSL se hincha
+    # sola aunque no haya trabajo. Con el tope puesto, la JVM ve el limite real y se ajusta.
+    # Medido el 2026-09-08 con docker stats; cada valor lleva un tercio de colchon.
+    mem_limit: 640m
+    expose:
+      - "8080"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      incidencias:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    environment:
+      # UseSerialGC en los servicios pequenos: G1 reserva estructuras por nucleo (aqui 8) y
+      # se lleva 80-100 MB de RSS que en un servicio que atiende cuatro peticiones no
+      # compensan. MaxRAMPercentage sustituye al 25% por defecto, que sobre un tope de
+      # 640 MB dejaria el heap en 160 MB y a Spring justo de sitio.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${USUARIOS_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${USUARIOS_DB_PASS}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      JWT_SECRET_KEY: ${JWT_KEY}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_APP_PASSWORD: ${MAIL_APP_PASSWORD}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      INCIDENCIAS_INTERNAL_SECRET: ${INCIDENCIAS_INTERNAL_SECRET}
+      COOKIE_SECURE: ${COOKIE_SECURE}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Arrancan los seis JVM a la vez y compiten por CPU: en frío tardan entre 220 s
+      # (gateway) y 355 s (estadísticas). Con los 45 s de antes el contenedor agotaba
+      # los reintentos y se marcaba "unhealthy" mucho antes de estar listo, lo que
+      # además hace fallar a quien dependa de él con condition: service_healthy.
+      # start_period no cuenta los fallos: solo hay que darle margen de sobra.
+      start_period: 420s
+    volumes:
+      - microservices_logs:/logs
+    networks:
+      - backend
+
+  estadisticas:
+    logging: *logging-por-defecto
+    build: ./Microservicio-estadisticas
+    restart: unless-stopped
+    # Tope de RAM del contenedor. Sin el, cada JVM se cree con 7,6 GB delante y dimensiona
+    # su heap al 25% de eso (1,9 GB cada una, por seis servicios): la VM de WSL se hincha
+    # sola aunque no haya trabajo. Con el tope puesto, la JVM ve el limite real y se ajusta.
+    # Medido el 2026-09-08 con docker stats; cada valor lleva un tercio de colchon.
+    mem_limit: 1536m
+    expose:
+      - "8082"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    environment:
+      # UseSerialGC en los servicios pequenos: G1 reserva estructuras por nucleo (aqui 8) y
+      # se lleva 80-100 MB de RSS que en un servicio que atiende cuatro peticiones no
+      # compensan. MaxRAMPercentage sustituye al 25% por defecto, que sobre un tope de
+      # 640 MB dejaria el heap en 160 MB y a Spring justo de sitio.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${ESTADISTICAS_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${ESTADISTICAS_DB_PASS}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      JWT_SECRET_KEY: ${JWT_KEY}
+      API_FOOTBALL_KEY: ${API_FOOTBALL_KEY}
+      # Live scoring APAGADO en desarrollo. Funciona y cuesta poco (~13.000 peticiones/día),
+      # pero mientras se está rellenando el histórico esa cuota hace más falta en el
+      # backfill, y no tiene sentido refrescar marcadores en una máquina de desarrollo que
+      # nadie está mirando. Se enciende en docker-compose.prod.yml, que es donde sí importa.
+      INGESTA_VIVO_HABILITADA: ${INGESTA_VIVO_HABILITADA:-false}
+      # Lo mismo para los cuatro trabajos automáticos (estadísticas al acabar el partido,
+      # repesca diaria, calendario y clasificaciones): apagados mientras el rellenado a mano
+      # siga necesitando la cuota entera. Se encienden poniendo la variable a true en el .env.
+      INGESTA_POST_PARTIDO_HABILITADA: ${INGESTA_POST_PARTIDO_HABILITADA:-false}
+      INGESTA_RECOGIDA_HABILITADA: ${INGESTA_RECOGIDA_HABILITADA:-false}
+      # Este por defecto SÍ: son ~400 peticiones al día (el 0,3% de la cuota) y sin él las
+      # plantillas se congelan -- que es exactamente lo que pasó, con Kroos en el Madrid dos
+      # años después de retirarse. El motivo por el que los demás nacen apagados (no restarle
+      # cuota al rellenado a mano) no se sostiene a este precio.
+      INGESTA_PLANTILLAS_HABILITADA: ${INGESTA_PLANTILLAS_HABILITADA:-true}
+      INGESTA_CALENDARIO_HABILITADA: ${INGESTA_CALENDARIO_HABILITADA:-false}
+      INGESTA_CLASIFICACIONES_HABILITADA: ${INGESTA_CLASIFICACIONES_HABILITADA:-false}
+      INGESTA_RECONCILIACION_HABILITADA: ${INGESTA_RECONCILIACION_HABILITADA:-false}
+      # Este por defecto SÍ, como el de plantillas y por el mismo motivo: cuesta una
+      # petición por día roto (cero si no hay ninguno) y sin él una noche con el equipo
+      # apagado deja esa jornada sin resultados para siempre -- que es justo lo que pasó
+      # el 2026-09-10, con 233 partidos del día anterior clavados en PROGRAMADO. En una
+      # máquina de desarrollo, que se apaga a diario, es el trabajo que más falta hace.
+      INGESTA_PUESTA_AL_DIA_HABILITADA: ${INGESTA_PUESTA_AL_DIA_HABILITADA:-true}
+      INCIDENCIAS_INTERNAL_SECRET: ${INCIDENCIAS_INTERNAL_SECRET}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Arrancan los seis JVM a la vez y compiten por CPU: en frío tardan entre 220 s
+      # (gateway) y 355 s (estadísticas). Con los 45 s de antes el contenedor agotaba
+      # los reintentos y se marcaba "unhealthy" mucho antes de estar listo, lo que
+      # además hace fallar a quien dependa de él con condition: service_healthy.
+      # start_period no cuenta los fallos: solo hay que darle margen de sobra.
+      start_period: 420s
+    volumes:
+      - microservices_logs:/logs
+    networks:
+      - backend
+
+  predicciones:
+    logging: *logging-por-defecto
+    build: ./Microservicio-predicciones
+    restart: unless-stopped
+    # Tope de RAM del contenedor. Sin el, cada JVM se cree con 7,6 GB delante y dimensiona
+    # su heap al 25% de eso (1,9 GB cada una, por seis servicios): la VM de WSL se hincha
+    # sola aunque no haya trabajo. Con el tope puesto, la JVM ve el limite real y se ajusta.
+    # Medido el 2026-09-08 con docker stats; cada valor lleva un tercio de colchon.
+    mem_limit: 640m
+    expose:
+      - "8086"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    environment:
+      # UseSerialGC en los servicios pequenos: G1 reserva estructuras por nucleo (aqui 8) y
+      # se lleva 80-100 MB de RSS que en un servicio que atiende cuatro peticiones no
+      # compensan. MaxRAMPercentage sustituye al 25% por defecto, que sobre un tope de
+      # 640 MB dejaria el heap en 160 MB y a Spring justo de sitio.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k
+      JWT_SECRET_KEY: ${JWT_KEY}
+      INCIDENCIAS_INTERNAL_SECRET: ${INCIDENCIAS_INTERNAL_SECRET}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8086/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Arrancan los seis JVM a la vez y compiten por CPU: en frío tardan entre 220 s
+      # (gateway) y 355 s (estadísticas). Con los 45 s de antes el contenedor agotaba
+      # los reintentos y se marcaba "unhealthy" mucho antes de estar listo, lo que
+      # además hace fallar a quien dependa de él con condition: service_healthy.
+      # start_period no cuenta los fallos: solo hay que darle margen de sobra.
+      start_period: 420s
+    volumes:
+      - microservices_logs:/logs
+    networks:
+      - backend
+
+  frontend:
+    logging: *logging-por-defecto
+    build: ../scorevia-frontend
+    restart: unless-stopped
+    # Tope de RAM del contenedor. Sin el, cada JVM se cree con 7,6 GB delante y dimensiona
+    # su heap al 25% de eso (1,9 GB cada una, por seis servicios): la VM de WSL se hincha
+    # sola aunque no haya trabajo. Con el tope puesto, la JVM ve el limite real y se ajusta.
+    # Medido el 2026-09-08 con docker stats; cada valor lleva un tercio de colchon.
+    mem_limit: 512m
+    ports:
+      - "4000:4000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      # Vacío por defecto: en local basta con los hostnames que server.ts trae de serie
+      # (localhost / 127.0.0.1), que ya permiten SSR de verdad. Antes esta lista estaba
+      # vacía por ambos lados y Angular rechazaba TODA petición por su Host header, cayendo
+      # a renderizado en cliente en cada carga. El overlay docker-compose.prod.yml fija
+      # aquí el dominio real detrás de Caddy.
+      NG_ALLOWED_HOSTS: ${NG_ALLOWED_HOSTS:-}
+      # environment.apiUrl ("http://localhost:8085") es la URL que ve el NAVEGADOR -- el host
+      # expone el Gateway ahí. Pero en SSR el código corre dentro de ESTE contenedor, donde
+      # "localhost:8085" es él mismo, no el Gateway; sin esto, toda petición HTTP durante el
+      # render de servidor fallaba en silencio (ver ssr-api-url-interceptor.ts). Dentro de la
+      # red docker el Gateway sí es alcanzable por su nombre de servicio.
+      API_URL_INTERNAL: http://api-gateway:8085
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:4000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true
+    name: scorevia_backend
+
+volumes:
+  postgres_data:
+    external: true
+    name: futbol-stats-backend_postgres_data
+  microservices_logs:
